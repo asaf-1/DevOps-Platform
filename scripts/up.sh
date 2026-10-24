@@ -112,12 +112,15 @@ fi
 # Pods must reach Ollama on the laptop at host.docker.internal. The kind
 # nodes resolve it (Docker Desktop writes it into their /etc/hosts) but pods
 # use CoreDNS, so teach CoreDNS the same address. Idempotent.
-gateway="$(docker exec "${CLUSTER_NAME}-control-plane" getent hosts host.docker.internal 2>/dev/null | awk '{print $1}' | head -1 || true)"
+# IPv4 only: the pod network is IPv4 and getent lists the IPv6 address first.
+gateway="$(docker exec "${CLUSTER_NAME}-control-plane" getent ahostsv4 host.docker.internal 2>/dev/null | awk '{print $1}' | head -1 || true)"
 if [ -n "$gateway" ]; then
   corefile="$(kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')"
-  if ! printf '%s' "$corefile" | grep -q 'host.docker.internal'; then
+  if ! printf '%s' "$corefile" | grep -q "$gateway host.docker.internal"; then
     say "CoreDNS: host.docker.internal -> $gateway for pods"
-    patched="$(printf '%s' "$corefile" | sed "s/^\(\s*\)ready$/\1ready\n\1hosts {\n\1   $gateway host.docker.internal\n\1   fallthrough\n\1}/")"
+    # drop any earlier hosts block, then add ours after the ready plugin
+    stripped="$(printf '%s' "$corefile" | sed '/^\s*hosts {/,/^\s*}/d')"
+    patched="$(printf '%s' "$stripped" | sed "s/^\(\s*\)ready$/\1ready\n\1hosts {\n\1   $gateway host.docker.internal\n\1   fallthrough\n\1}/")"
     kubectl -n kube-system create configmap coredns --from-literal=Corefile="$patched" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
     kubectl -n kube-system rollout restart deployment/coredns >/dev/null
   fi
