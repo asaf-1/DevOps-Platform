@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/asaf-1/DevOps-Platform/platform/catalog/k8s-namespace/schema.json",
+  "title": "k8s-namespace request inputs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "team", "cost_center"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$",
+      "description": "Namespace name. DNS label: lowercase letters, digits, hyphens, 3 to 40 characters."
+    },
+    "team": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,30}$"
+    },
+    "cost_center": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,30}$"
+    },
+    "size": {
+      "type": "string",
+      "enum": ["small", "medium", "large"],
+      "default": "small",
+      "description": "Quota: small 2 CPU / 4Gi / 20 pods, medium 4 CPU / 8Gi / 50 pods, large 8 CPU / 16Gi / 100 pods."
+    }
+  }
+}

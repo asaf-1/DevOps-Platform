@@ -1,0 +1,21 @@
+# Request {{ request.id }}: k8s-namespace "{{ inputs.name }}" for team {{ inputs.team }}.
+# Rendered by the platform API from platform/catalog/k8s-namespace/request.tf.j2.
+# Do not edit by hand: change the request, or the module, and re-render.
+module "{{ request.id | tf_ident }}" {
+  source = "../../../modules/k8s-namespace"
+
+  name = "{{ inputs.name }}"
+  size = "{{ inputs.size }}"
+
+  tags = {
+    "team"        = "{{ inputs.team }}"
+    "cost-center" = "{{ inputs.cost_center }}"
+    "request-id"  = "{{ request.id }}"
+    "managed-by"  = "platform"
+  }
+}
+
+output "{{ request.id | tf_ident }}" {
+  description = "Outputs of request {{ request.id }}"
+  value       = module.{{ request.id | tf_ident }}
+}

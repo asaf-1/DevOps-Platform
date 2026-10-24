@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/asaf-1/DevOps-Platform/platform/catalog/s3-bucket/schema.json",
+  "title": "s3-bucket request inputs",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "team", "cost_center"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{3,40}$",
+      "description": "Bucket name. Lowercase letters, digits and hyphens, 3 to 40 characters. Must be unique."
+    },
+    "team": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,30}$",
+      "description": "Owning team. Becomes the team tag."
+    },
+    "cost_center": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,30}$",
+      "description": "Cost center that pays for it. Becomes the cost-center tag."
+    },
+    "versioning": {
+      "type": "boolean",
+      "default": true,
+      "description": "Keep previous versions of overwritten and deleted objects."
+    },
+    "retention": {
+      "type": "string",
+      "enum": ["none", "30d", "90d", "365d"],
+      "default": "90d",
+      "description": "How long noncurrent object versions are kept before they expire. Only meaningful with versioning."
+    }
+  }
+}

@@ -1,0 +1,12 @@
+type: k8s-namespace
+display_name: Kubernetes namespace
+description: A namespace in the platform cluster with a resource quota and default limits sized small, medium or large.
+provider: kubernetes
+module: infra/terraform/modules/k8s-namespace
+owner_team: platform
+policy_set: terraform-default
+approval_required: true
+environments:
+  - local
+outputs:
+  - namespace

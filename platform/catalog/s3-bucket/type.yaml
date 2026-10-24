@@ -1,0 +1,14 @@
+type: s3-bucket
+display_name: S3 bucket
+description: Private object storage. Encrypted at rest, all public access blocked, versioned by default.
+provider: aws
+module: infra/terraform/modules/s3-bucket
+owner_team: platform
+policy_set: terraform-default
+approval_required: true
+environments:
+  - local
+  - dev
+outputs:
+  - bucket_name
+  - bucket_arn

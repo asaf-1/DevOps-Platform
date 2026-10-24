@@ -1,0 +1,22 @@
+# Request {{ request.id }}: s3-bucket "{{ inputs.name }}" for team {{ inputs.team }}.
+# Rendered by the platform API from platform/catalog/s3-bucket/request.tf.j2.
+# Do not edit by hand: change the request, or the module, and re-render.
+module "{{ request.id | tf_ident }}" {
+  source = "../../../modules/s3-bucket"
+
+  name       = "{{ inputs.name }}"
+  versioning = {{ inputs.versioning | lower }}
+  retention  = "{{ inputs.retention }}"
+
+  tags = {
+    "team"        = "{{ inputs.team }}"
+    "cost-center" = "{{ inputs.cost_center }}"
+    "request-id"  = "{{ request.id }}"
+    "managed-by"  = "platform"
+  }
+}
+
+output "{{ request.id | tf_ident }}" {
+  description = "Outputs of request {{ request.id }}"
+  value       = module.{{ request.id | tf_ident }}
+}

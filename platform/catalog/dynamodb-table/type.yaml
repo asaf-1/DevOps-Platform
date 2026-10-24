@@ -1,0 +1,14 @@
+type: dynamodb-table
+display_name: DynamoDB table
+description: Key-value table. Encrypted, point-in-time recovery on, capacity by size.
+provider: aws
+module: infra/terraform/modules/dynamodb-table
+owner_team: platform
+policy_set: terraform-default
+approval_required: true
+environments:
+  - local
+  - dev
+outputs:
+  - table_name
+  - table_arn

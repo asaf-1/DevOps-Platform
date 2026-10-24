@@ -1,0 +1,27 @@
+# Request {{ request.id }}: dynamodb-table "{{ inputs.name }}" for team {{ inputs.team }}.
+# Rendered by the platform API from platform/catalog/dynamodb-table/request.tf.j2.
+# Do not edit by hand: change the request, or the module, and re-render.
+module "{{ request.id | tf_ident }}" {
+  source = "../../../modules/dynamodb-table"
+
+  name                   = "{{ inputs.name }}"
+  hash_key               = "{{ inputs.hash_key }}"
+  hash_key_type          = "{{ inputs.hash_key_type }}"
+  range_key              = {{ inputs.range_key | tf_string }}
+  range_key_type         = "{{ inputs.range_key_type }}"
+  size                   = "{{ inputs.size }}"
+  ttl_attribute          = {{ inputs.ttl_attribute | tf_string }}
+  point_in_time_recovery = {{ inputs.point_in_time_recovery | lower }}
+
+  tags = {
+    "team"        = "{{ inputs.team }}"
+    "cost-center" = "{{ inputs.cost_center }}"
+    "request-id"  = "{{ request.id }}"
+    "managed-by"  = "platform"
+  }
+}
+
+output "{{ request.id | tf_ident }}" {
+  description = "Outputs of request {{ request.id }}"
+  value       = module.{{ request.id | tf_ident }}
+}
