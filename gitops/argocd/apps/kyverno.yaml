@@ -37,12 +37,14 @@ spec:
       kind: ValidatingWebhookConfiguration
       jsonPointers:
         - /webhooks
-    # The chart renders "labels: {}" on its CRDs; the API server drops the
-    # empty map, which would otherwise read as OutOfSync forever.
+    # Kyverno's controllers strip labels and annotations (including ArgoCD's
+    # tracking annotation) from the policies.kyverno.io CRDs after install,
+    # and the chart renders "labels: {}" on them. Compare the spec only.
     - group: apiextensions.k8s.io
       kind: CustomResourceDefinition
       jsonPointers:
         - /metadata/labels
+        - /metadata/annotations
   syncPolicy:
     automated:
       prune: true

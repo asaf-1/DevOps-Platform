@@ -1,5 +1,12 @@
 # Kyverno, one replica of each controller. Policies live in
 # infra/policies/kyverno/ and arrive in Phase 3.
+
+# The CRD migration hook job rewrites the CRDs' metadata after every sync,
+# which fights ArgoCD. This is a fresh install, nothing to migrate.
+crds:
+  migration:
+    enabled: false
+
 admissionController:
   replicas: 1
   container:
