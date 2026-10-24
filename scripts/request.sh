@@ -15,6 +15,8 @@ NAME="${REQUEST_NAME:-demo-uploads}"
 TEAM="${REQUEST_TEAM:-web}"
 COST_CENTER="${REQUEST_COST_CENTER:-cc-100}"
 PORT="${REQUEST_PORT:-18000}"
+# Who asks: PLATFORM_USER, else the git identity, else the OS user.
+REQUESTED_BY="${PLATFORM_USER:-$(git -C "$REPO_ROOT" config user.name 2>/dev/null || whoami)}"
 
 say "port-forward platform/svc/platform-api -> localhost:$PORT"
 kubectl -n platform port-forward svc/platform-api "$PORT:80" >/dev/null 2>&1 &
@@ -26,7 +28,7 @@ for _ in $(seq 1 30); do
 done
 curl -sf "http://localhost:$PORT/healthz" >/dev/null || die "platform API not reachable through the port-forward"
 
-say "platform request $TYPE --name $NAME --team $TEAM --cost-center $COST_CENTER ${REQUEST_EXTRA:-}"
+say "platform request $TYPE --name $NAME --team $TEAM --cost-center $COST_CENTER --as $REQUESTED_BY ${REQUEST_EXTRA:-}"
 # shellcheck disable=SC2086
 PLATFORM_API_URL="http://localhost:$PORT" "$PLATFORM" request "$TYPE" \
-  --name "$NAME" --team "$TEAM" --cost-center "$COST_CENTER" ${REQUEST_EXTRA:-}
+  --name "$NAME" --team "$TEAM" --cost-center "$COST_CENTER" --as "$REQUESTED_BY" ${REQUEST_EXTRA:-}
