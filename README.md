@@ -193,10 +193,12 @@ scripts/            what the Makefile targets run
 
 - [0001 Run on kind and LocalStack by default, real AWS only as a mode](docs/adr/0001-kind-and-localstack-over-eks.md)
 - [0002 ArgoCD app of apps as the only way to change the cluster](docs/adr/0002-argocd-app-of-apps.md)
+- [0003 Terraform for the reviewed path, Pulumi for the programmatic path](docs/adr/0003-terraform-primary-pulumi-programmatic.md)
+- [0004 Approve in GitHub, execute in the cluster](docs/adr/0004-approval-in-github-execution-in-cluster.md)
+- [0005 One Terraform file per request](docs/adr/0005-one-file-per-request.md)
 
-More arrive with each phase: Terraform vs Pulumi, agent framework, MCP for
-tool access, the two-layer propose-only enforcement, OpenTelemetry over a
-vendor SDK.
+More arrive with each phase: agent framework, MCP for tool access, the
+two-layer propose-only enforcement, OpenTelemetry over a vendor SDK.
 
 ## License
 
