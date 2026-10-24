@@ -1,0 +1,29 @@
+# kind cluster for the local platform. Created by scripts/up.sh:
+#   kind create cluster --name platform --config gitops/clusters/local/kind.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: platform
+nodes:
+  - role: control-plane
+    # ingress-nginx's kind manifest schedules the controller on this label and
+    # uses hostPort 80/443, which these mappings expose on the host.
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      # LocalStack Service of type NodePort 30566 -> host 4566, so the AWS CLI
+      # and Terraform on the host (or in the devcontainer through
+      # host.docker.internal) use http://localhost:4566 as usual.
+      - containerPort: 30566
+        hostPort: 4566
+        protocol: TCP
+  - role: worker
