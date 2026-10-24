@@ -13,7 +13,9 @@ say "nodes"
 kubectl get nodes -o wide
 
 say "ArgoCD Applications"
-kubectl -n argocd get applications -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,REVISION:.status.sync.revision' 2>/dev/null \
+# Multi-source Applications report revisions[], single-source ones revision;
+# the ArgoCD UI shows both, so the table keeps to sync and health.
+kubectl -n argocd get applications -o custom-columns='NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status' 2>/dev/null \
   || warn "ArgoCD not installed yet"
 
 say "pods not Running or Succeeded"
