@@ -7,6 +7,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+    # The chart has pre-delete hooks; ArgoCD adds these two itself, and the
+    # root Application would otherwise see them as drift.
+    - pre-delete-finalizer.argocd.argoproj.io
+    - pre-delete-finalizer.argocd.argoproj.io/cleanup
 spec:
   project: platform
   sources:
