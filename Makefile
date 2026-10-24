@@ -40,6 +40,6 @@ evals: ## Run the agent eval suite with Promptfoo (Phase 2)
 	@echo "==> make evals: run promptfoo over agents/evals"
 	@bash scripts/evals.sh
 
-lint: ## Lint Python, Terraform, YAML and shell
-	@echo "==> make lint: ruff, terraform fmt -check, yamllint, shellcheck where available"
+lint: ## Everything that must be green before a push
+	@echo "==> make lint: ruff + pytest (api, cli), terraform fmt -check + validate, conftest verify, bash -n"
 	@bash scripts/lint.sh

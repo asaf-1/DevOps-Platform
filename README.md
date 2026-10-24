@@ -19,8 +19,8 @@ real AWS and Claude as configuration switches.
 
 | Phase | What it delivers | State |
 |---|---|---|
-| 0. Foundations | kind cluster, ArgoCD app of apps, observability stack, Kyverno, Postgres, LocalStack, devcontainer | in progress |
-| 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | planned |
+| 0. Foundations | kind cluster, ArgoCD app of apps, observability stack, Kyverno, Postgres, LocalStack, devcontainer | done |
+| 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | in progress: catalog, modules, API, CLI and OPA policies done; CI workflows, approval gate, apply worker and demo app next |
 | 2. Agent platform | model-agnostic agent runtime, MCP tool registry with capability labels, incident-triage agent, fix PR flow, Alertmanager wiring | planned |
 | 3. Trust layer | Promptfoo eval suite in CI, safety cases, Kyverno policies against the agent service account, OpenTelemetry traces per run and tool call, Grafana dashboards | planned |
 | 4. Product and polish | one-page UI, DX metrics, optional real-AWS run with OIDC, optional Datadog export | planned |
@@ -147,7 +147,7 @@ All targets:
 | `make break` | Commit a bad image tag and a tiny memory limit for the demo app so a real alert fires | 2 |
 | `make fix` | Revert the break commit | 2 |
 | `make evals` | Run the Promptfoo eval suite over the agents | 3 |
-| `make lint` | Ruff, `terraform fmt -check`, yamllint, shellcheck | 1 |
+| `make lint` | Ruff and pytest for the API and CLI, `terraform fmt -check` and `validate`, `conftest verify`, shell syntax | 1 |
 
 Local configuration goes in `.env`, copied from [.env.example](.env.example).
 

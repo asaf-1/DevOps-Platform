@@ -1,0 +1,413 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "bucket": "sample-bucket-1",
+          "force_destroy": false,
+          "region": "us-east-1",
+          "tags": {
+            "cost-center": "cc-100",
+            "managed-by": "platform",
+            "request-id": "r-sample1",
+            "team": "web"
+          },
+          "tags_all": {
+            "cost-center": "cc-100",
+            "environment": "local",
+            "managed-by": "platform",
+            "request-id": "r-sample1",
+            "team": "web"
+          },
+          "timeouts": null
+        },
+        "after_identity": {
+          "account_id": null,
+          "bucket": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket"
+    },
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket_lifecycle_configuration.this[0]",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "region": "us-east-1",
+          "rule": [
+            {
+              "abort_incomplete_multipart_upload": [
+                {
+                  "days_after_initiation": 7
+                }
+              ],
+              "expiration": [],
+              "filter": [
+                {
+                  "and": [],
+                  "object_size_greater_than": null,
+                  "object_size_less_than": null,
+                  "prefix": "",
+                  "tag": []
+                }
+              ],
+              "id": "expire-noncurrent-versions",
+              "noncurrent_version_expiration": [
+                {
+                  "newer_noncurrent_versions": null,
+                  "noncurrent_days": 30
+                }
+              ],
+              "noncurrent_version_transition": [],
+              "prefix": "",
+              "status": "Enabled",
+              "transition": []
+            }
+          ],
+          "timeouts": null,
+          "transition_default_minimum_object_size": "all_storage_classes_128K"
+        },
+        "before": null
+      },
+      "index": 0,
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket_lifecycle_configuration"
+    },
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket_ownership_controls.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "region": "us-east-1",
+          "rule": [
+            {
+              "object_ownership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "after_identity": {
+          "account_id": null,
+          "bucket": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket_ownership_controls"
+    },
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket_public_access_block.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "block_public_acls": false,
+          "block_public_policy": true,
+          "ignore_public_acls": true,
+          "region": "us-east-1",
+          "restrict_public_buckets": true,
+          "skip_destroy": null
+        },
+        "after_identity": {
+          "account_id": null,
+          "bucket": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket_public_access_block"
+    },
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket_versioning.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "expected_bucket_owner": null,
+          "mfa": null,
+          "region": "us-east-1",
+          "versioning_configuration": [
+            {
+              "status": "Enabled"
+            }
+          ]
+        },
+        "after_identity": {
+          "account_id": null,
+          "bucket": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket_versioning"
+    },
+    {
+      "address": "module.requests.module.r-sample2.aws_dynamodb_table.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "attribute": [
+            {
+              "name": "pk",
+              "type": "S"
+            },
+            {
+              "name": "sk",
+              "type": "S"
+            }
+          ],
+          "billing_mode": "PROVISIONED",
+          "deletion_protection_enabled": null,
+          "hash_key": "pk",
+          "import_table": [],
+          "local_secondary_index": [],
+          "name": "Bad_Name",
+          "on_demand_throughput": [],
+          "point_in_time_recovery": [
+            {
+              "enabled": true
+            }
+          ],
+          "range_key": "sk",
+          "read_capacity": 5,
+          "region": "us-east-1",
+          "replica": [],
+          "restore_backup_arn": null,
+          "restore_date_time": null,
+          "restore_source_name": null,
+          "restore_source_table_arn": null,
+          "restore_to_latest_time": null,
+          "server_side_encryption": [
+            {
+              "enabled": true
+            }
+          ],
+          "stream_enabled": null,
+          "table_class": null,
+          "tags": {
+            "managed-by": "platform",
+            "request-id": "r-sample2",
+            "team": "web"
+          },
+          "tags_all": {
+            "environment": "local",
+            "managed-by": "platform",
+            "request-id": "r-sample2",
+            "team": "web"
+          },
+          "timeouts": null,
+          "ttl": [
+            {
+              "attribute_name": "expires_at",
+              "enabled": true
+            }
+          ],
+          "write_capacity": 5
+        },
+        "after_identity": {
+          "account_id": null,
+          "name": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample2",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_dynamodb_table"
+    },
+    {
+      "address": "module.requests.module.r-sample3.kubernetes_limit_range_v1.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "metadata": [
+            {
+              "annotations": null,
+              "generate_name": null,
+              "labels": null,
+              "name": "platform-defaults",
+              "namespace": "team-web-dev"
+            }
+          ],
+          "spec": [
+            {
+              "limit": [
+                {
+                  "default": {
+                    "cpu": "250m",
+                    "memory": "256Mi"
+                  },
+                  "default_request": {
+                    "cpu": "50m",
+                    "memory": "64Mi"
+                  },
+                  "max": null,
+                  "max_limit_request_ratio": null,
+                  "min": null,
+                  "type": "Container"
+                }
+              ]
+            }
+          ]
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample3",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/kubernetes",
+      "type": "kubernetes_limit_range_v1"
+    },
+    {
+      "address": "module.requests.module.r-sample3.kubernetes_namespace_v1.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "metadata": [
+            {
+              "annotations": null,
+              "generate_name": null,
+              "labels": {
+                "cost-center": "cc-100",
+                "managed-by": "platform",
+                "request-id": "r-sample3",
+                "team": "web"
+              },
+              "name": "team-web-dev"
+            }
+          ],
+          "timeouts": null,
+          "wait_for_default_service_account": false
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample3",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/kubernetes",
+      "type": "kubernetes_namespace_v1"
+    },
+    {
+      "address": "module.requests.module.r-sample3.kubernetes_resource_quota_v1.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "metadata": [
+            {
+              "annotations": null,
+              "generate_name": null,
+              "labels": null,
+              "name": "platform-quota",
+              "namespace": "team-web-dev"
+            }
+          ],
+          "spec": [
+            {
+              "hard": {
+                "limits.cpu": "2",
+                "limits.memory": "4Gi",
+                "pods": "20",
+                "requests.cpu": "2",
+                "requests.memory": "4Gi"
+              },
+              "scope_selector": [],
+              "scopes": null
+            }
+          ],
+          "timeouts": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample3",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/kubernetes",
+      "type": "kubernetes_resource_quota_v1"
+    },
+    {
+      "address": "module.requests.module.r-sample1.aws_s3_bucket_acl.this",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "acl": "public-read",
+          "bucket": "sample-bucket-1"
+        },
+        "after_identity": {
+          "account_id": null,
+          "bucket": null,
+          "region": null
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "module_address": "module.requests.module.r-sample1",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_s3_bucket_acl"
+    },
+    {
+      "address": "aws_instance.rogue",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "after": {
+          "ami": "ami-123",
+          "instance_type": "t3.large",
+          "tags": {
+            "team": "web"
+          }
+        },
+        "before": null
+      },
+      "mode": "managed",
+      "name": "rogue",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "type": "aws_instance"
+    }
+  ],
+  "terraform_version": "1.16.6"
+}
