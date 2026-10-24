@@ -61,18 +61,67 @@ alertmanager:
       group_wait: 30s
       group_interval: 1m
       repeat_interval: 4h
-      # Phase 2 adds a route for severity warning|critical to agent-runtime.
       routes:
         - receiver: "null"
           matchers:
             - alertname = "Watchdog"
+        # Alerts on the demo app go to the incident-triage agent.
+        - receiver: agent-runtime
+          matchers:
+            - severity =~ "warning|critical"
+            - namespace = "demo"
+          group_wait: 10s
+          group_interval: 30s
+          repeat_interval: 1h
     receivers:
       - name: "null"
-      # Placeholder for the agent runtime webhook; the Service appears in Phase 2.
       - name: agent-runtime
         webhook_configs:
           - url: http://agent-runtime.platform.svc.cluster.local:8080/webhooks/alertmanager
             send_resolved: true
+
+# Alert rules for the demo app, short `for` so demos are quick.
+additionalPrometheusRulesMap:
+  demo-app:
+    groups:
+      - name: demo-app
+        rules:
+          - alert: DemoAppImagePullBackOff
+            expr: max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace="demo", reason=~"ImagePullBackOff|ErrImagePull"}) == 1
+            for: 1m
+            labels:
+              severity: critical
+              app: demo-app
+            annotations:
+              summary: "{{ $labels.pod }} cannot pull its image"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} is in ImagePullBackOff; the image tag in gitops/apps/demo-app/deployment.yaml probably does not exist."
+          - alert: DemoAppOOMKilled
+            expr: max by (namespace, pod, container) (kube_pod_container_status_last_terminated_reason{namespace="demo", reason="OOMKilled"}) == 1
+            for: 1m
+            labels:
+              severity: critical
+              app: demo-app
+            annotations:
+              summary: "{{ $labels.pod }} was OOMKilled"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} exceeded its memory limit; see resources.limits.memory in gitops/apps/demo-app/deployment.yaml."
+          - alert: DemoAppCrashLooping
+            expr: increase(kube_pod_container_status_restarts_total{namespace="demo"}[5m]) > 2
+            for: 1m
+            labels:
+              severity: warning
+              app: demo-app
+            annotations:
+              summary: "{{ $labels.pod }} is restarting repeatedly"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} restarted more than twice in 5 minutes."
+          - alert: DemoAppUnavailable
+            expr: kube_deployment_status_replicas_unavailable{namespace="demo"} > 0
+            for: 2m
+            labels:
+              severity: warning
+              app: demo-app
+            annotations:
+              summary: "{{ $labels.deployment }} has unavailable replicas"
+              description: "Deployment {{ $labels.namespace }}/{{ $labels.deployment }} has had unavailable replicas for 2 minutes."
 
 grafana:
   enabled: true

@@ -1,0 +1,40 @@
+# Agent runtime. Image tag bumped by build.yml like the platform API.
+image:
+  repository: ghcr.io/asaf-1/devops-platform/agent-runtime
+  tag: "main"
+  pullPolicy: Always
+
+# Namespaces the agent may read. One Role + RoleBinding each, read verbs only.
+allowedNamespaces:
+  - demo
+
+model:
+  provider: ollama            # ollama | anthropic
+  name: qwen3:4b
+  ollamaBaseUrl: http://host.docker.internal:11434
+  # anthropic: set the Secret below with key ANTHROPIC_API_KEY and provider: anthropic
+  anthropicSecretName: agent-anthropic
+
+database:
+  secretName: platform-app     # CNPG secret in namespace platform (same audit table as the API)
+  uriKey: uri
+
+github:
+  repo: asaf-1/DevOps-Platform
+  secretName: platform-github  # created by scripts/up.sh from .env
+  tokenKey: token
+
+grafana:
+  url: http://kps-grafana.observability.svc.cluster.local
+  secretName: agent-grafana    # service account token, created by scripts/up.sh
+  tokenKey: token
+
+otel:
+  endpoint: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

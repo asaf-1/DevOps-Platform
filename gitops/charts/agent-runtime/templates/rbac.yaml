@@ -1,0 +1,47 @@
+# Second line of defence after the manifest: the agent's identity can only
+# read, and only in the allowed namespaces. No ClusterRole, no write verb.
+# Phase 3 adds a Kyverno policy that denies writes from this ServiceAccount
+# even if a Role were ever added by mistake.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-runtime
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: platform
+{{- range $ns := .Values.allowedNamespaces }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: agent-runtime-read
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: platform
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log, events, configmaps, services, endpoints]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: agent-runtime-read
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: agent-runtime-read
+subjects:
+  - kind: ServiceAccount
+    name: agent-runtime
+    namespace: {{ $.Release.Namespace }}
+{{- end }}

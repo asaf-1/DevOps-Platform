@@ -1,0 +1,33 @@
+# Capability label for every tool the MCP servers expose. The registry
+# refuses to start if a tool has no label (unknown tools are not allowed
+# by accident). A manifest with mutation: propose_only may only use tools
+# labelled read on target cluster; write on target github is what a
+# proposal is (a branch and a pull request), never on the cluster.
+#
+# Patterns are matched against "<server>.<tool>" in order; first match wins.
+rules:
+  # kubernetes (mcp-server-kubernetes)
+  - match: "kubernetes.(kubectl_get|kubectl_describe|kubectl_logs|kubectl_context|explain_resource|list_api_resources|ping)"
+    capability: read
+  - match: "kubernetes.(kubectl_delete|cleanup|uninstall_helm_chart)"
+    capability: delete
+  - match: "kubernetes.*"
+    capability: write
+
+  # github (github-mcp-server, toolsets repos + pull_requests)
+  - match: "github.(get_file_contents|list_commits|get_commit|search_code|search_repositories|list_branches|list_tags|get_tag|list_pull_requests|get_pull_request|get_pull_request_files|get_pull_request_diff|get_pull_request_status|get_pull_request_comments|get_pull_request_reviews|list_releases|get_latest_release|get_release_by_tag)"
+    capability: read
+  - match: "github.delete_file"
+    capability: delete
+  - match: "github.*"
+    capability: write
+
+  # grafana (mcp-grafana with --disable-write)
+  - match: "grafana.(query_prometheus|query_loki_logs|query_loki_stats|list_loki_label_names|list_loki_label_values|list_prometheus_metric_names|list_prometheus_metric_metadata|list_prometheus_label_names|list_prometheus_label_values|list_datasources|get_datasource_by_uid|get_datasource_by_name|search_dashboards|get_dashboard_by_uid|get_dashboard_summary|get_dashboard_panel_queries|list_alert_rules|get_alert_rule_by_uid|list_contact_points|find_error_pattern_logs|find_slow_requests|list_teams|list_users_by_org)"
+    capability: read
+  - match: "grafana.*"
+    capability: write
+
+  # local tools
+  - match: "local.git_log"
+    capability: read

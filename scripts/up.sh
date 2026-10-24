@@ -109,6 +109,42 @@ if [ -n "$token" ]; then
 else
   warn "PLATFORM_GITHUB_TOKEN not in .env; requests will fail until it is set (PLAN.md 8.4 step 5), then run make up again"
 fi
+# Pods must reach Ollama on the laptop at host.docker.internal. The kind
+# nodes resolve it (Docker Desktop writes it into their /etc/hosts) but pods
+# use CoreDNS, so teach CoreDNS the same address. Idempotent.
+gateway="$(docker exec "${CLUSTER_NAME}-control-plane" getent hosts host.docker.internal 2>/dev/null | awk '{print $1}' | head -1 || true)"
+if [ -n "$gateway" ]; then
+  corefile="$(kubectl -n kube-system get configmap coredns -o jsonpath='{.data.Corefile}')"
+  if ! printf '%s' "$corefile" | grep -q 'host.docker.internal'; then
+    say "CoreDNS: host.docker.internal -> $gateway for pods"
+    patched="$(printf '%s' "$corefile" | sed "s/^\(\s*\)ready$/\1ready\n\1hosts {\n\1   $gateway host.docker.internal\n\1   fallthrough\n\1}/")"
+    kubectl -n kube-system create configmap coredns --from-literal=Corefile="$patched" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+    kubectl -n kube-system rollout restart deployment/coredns >/dev/null
+  fi
+else
+  warn "host.docker.internal not resolvable on the kind node; the agent cannot reach Ollama"
+fi
+
+# Grafana service account token for the agent's Grafana MCP server (read
+# only: role Viewer). Created once through Grafana's API; never in git.
+if ! kubectl -n platform get secret agent-grafana >/dev/null 2>&1; then
+  gpw="$(kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d || true)"
+  if [ -n "$gpw" ] && kubectl -n observability get svc kps-grafana >/dev/null 2>&1; then
+    say "creating the Grafana service account token for the agent (Viewer)"
+    kubectl -n observability port-forward svc/kps-grafana 13000:80 >/dev/null 2>&1 &
+    gpf=$!; sleep 3
+    sa_id="$(curl -s -u "admin:$gpw" -H 'Content-Type: application/json' -X POST http://localhost:13000/api/serviceaccounts -d '{"name":"agent-runtime","role":"Viewer"}' | sed -n 's/.*"id":\([0-9]*\).*/\1/p')"
+    [ -z "$sa_id" ] && sa_id="$(curl -s -u "admin:$gpw" 'http://localhost:13000/api/serviceaccounts/search?query=agent-runtime' | sed -n 's/.*"id":\([0-9]*\).*/\1/p' | head -1)"
+    gtoken="$(curl -s -u "admin:$gpw" -H 'Content-Type: application/json' -X POST "http://localhost:13000/api/serviceaccounts/$sa_id/tokens" -d "{\"name\":\"agent-$(date +%s)\"}" | sed -n 's/.*"key":"\([^"]*\)".*/\1/p')"
+    kill $gpf 2>/dev/null || true
+    if [ -n "$gtoken" ]; then
+      kubectl -n platform create secret generic agent-grafana --from-literal=token="$gtoken" >/dev/null
+      say "secret platform/agent-grafana created"
+    else
+      warn "could not create the Grafana token; the agent's Grafana tools will be unavailable (run make up again later)"
+    fi
+  fi
+fi
 kubectl apply -f "$ARGOCD_DIR/project.yaml" -f "$ARGOCD_DIR/root.yaml"
 
 say "6/6 waiting up to $WAIT_TIMEOUT for all Applications to be Synced and Healthy"

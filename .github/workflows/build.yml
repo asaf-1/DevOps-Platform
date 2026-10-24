@@ -9,6 +9,8 @@ on:
     paths:
       - "platform/api/**"
       - "platform/catalog/**"
+      - "agents/**"
+      - "docs/runbooks/**"
       - "gitops/apps/demo-app/app.py"
       - "gitops/apps/demo-app/Dockerfile"
       - ".github/workflows/build.yml"
@@ -69,6 +71,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: agent-runtime
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: agents/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/agent-runtime:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_BASE }}/agent-runtime:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   bump-manifests:
     name: Point manifests at the new tag
     needs: images
@@ -84,6 +98,7 @@ jobs:
         run: |
           sed -i -E "s#(ghcr.io/[^/]+/devops-platform/demo-app:)[^\"' ]+#\1${TAG}#" gitops/apps/demo-app/deployment.yaml
           sed -i -E "s#^(  tag: ).*#\1\"${TAG}\"#" gitops/charts/platform-api/values.yaml
+          sed -i -E "s#^(  tag: ).*#\1\"${TAG}\"#" gitops/charts/agent-runtime/values.yaml
           git diff --stat
           if git diff --quiet; then echo "manifests already at ${TAG}"; exit 0; fi
           git config user.name "github-actions[bot]"

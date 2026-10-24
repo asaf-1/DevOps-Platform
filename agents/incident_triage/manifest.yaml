@@ -1,0 +1,32 @@
+# The incident-triage agent. Validated at startup by agents/runtime/manifest.py;
+# any tool here whose capability is write or delete on the cluster makes the
+# runtime refuse to start.
+name: incident-triage
+description: >
+  Receives an alert, reads the affected workload (pods, logs, events,
+  metrics), reads the matching runbooks, writes a structured diagnosis and
+  proposes a fix as a pull request against the GitOps folder. It cannot
+  change the cluster.
+model:
+  provider: ${MODEL_PROVIDER}
+  name: ${MODEL_NAME}
+mutation: propose_only
+allowed_namespaces:
+  - demo
+allowed_tools_file: tools.yaml
+max_steps: 12
+token_budget: 24000
+knowledge_tags:
+  - kubernetes
+  - demo-app
+  - crashloop
+  - imagepull
+  - oom
+report:
+  required_sections:
+    - symptoms
+    - evidence
+    - root_cause
+    - proposed_change
+    - confidence
+    - not_verified

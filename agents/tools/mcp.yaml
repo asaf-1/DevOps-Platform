@@ -1,0 +1,38 @@
+# MCP servers the agent runtime connects to at startup. Each runs as a
+# subprocess inside the agent-runtime pod (stdio transport). Environment
+# values written as ${NAME} are taken from the pod's environment.
+#
+# None of these flags is the security boundary. The boundary is the
+# capability mapping (capabilities.yaml) plus the agent's allowlist, and
+# below that the ServiceAccount's read-only RBAC and Kyverno (Phase 3).
+servers:
+  kubernetes:
+    # https://github.com/Flux159/mcp-server-kubernetes (npm, pinned in the image)
+    command: mcp-server-kubernetes
+    args: []
+    env:
+      # Drops destructive tools; create/update remain, which is why the
+      # allowlist and RBAC matter. In-cluster auth via the ServiceAccount.
+      ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS: "true"
+    target: cluster
+
+  github:
+    # https://github.com/github/github-mcp-server (Go binary, pinned in the image)
+    command: github-mcp-server
+    args: ["stdio", "--toolsets", "repos,pull_requests"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ${PLATFORM_GITHUB_TOKEN}
+    target: github
+
+  grafana:
+    # https://github.com/grafana/mcp-grafana (Go binary, pinned in the image)
+    command: mcp-grafana
+    args: ["-t", "stdio", "--disable-write"]
+    env:
+      GRAFANA_URL: ${GRAFANA_URL}
+      GRAFANA_SERVICE_ACCOUNT_TOKEN: ${GRAFANA_SERVICE_ACCOUNT_TOKEN}
+    target: observability
+
+# Small local tools implemented in agents/runtime/tools/local.py, no server.
+local:
+  - git_log

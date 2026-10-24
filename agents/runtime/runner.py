@@ -1,0 +1,225 @@
+"""Run one agent against one alert.
+
+Everything the agent may do is decided here from files: the manifest
+(what), the capability map (what each tool is), the prompt (how), the
+runbooks (knowledge). The model is whatever providers.build_model returns.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import secrets
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from pydantic_ai import Agent
+from pydantic_ai.models import Model
+from pydantic_ai.usage import UsageLimits
+
+from .audit import Store
+from .knowledge import Knowledge, alert_tags
+from .manifest import (
+    AgentManifest,
+    CapabilityMap,
+    describe,
+    load_manifest,
+    load_yaml,
+    validate_manifest,
+)
+from .providers import ModelConfig, build_model
+from .tools.local import make_local_toolset
+from .tools.registry import ToolGuard, build_toolsets
+
+log = logging.getLogger("agent.runner")
+
+_PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
+
+
+@dataclass
+class AgentSpec:
+    manifest: AgentManifest
+    resolved: dict[str, dict[str, str]]
+    prompt: str
+    directory: Path
+
+
+def load_agent(agent_dir: Path, capmap: CapabilityMap) -> AgentSpec:
+    """Load and validate an agent directory. Raises ManifestViolation on any forbidden tool."""
+    manifest = load_manifest(agent_dir / "manifest.yaml")
+    resolved = validate_manifest(manifest, capmap)
+    prompt = (agent_dir / "prompt.md").read_text(encoding="utf-8")
+    log.info(
+        "agent %s: mutation=%s, tools:\n%s", manifest.name, manifest.mutation, describe(resolved)
+    )
+    return AgentSpec(manifest, resolved, prompt, agent_dir)
+
+
+def new_run_id() -> str:
+    return f"run-{secrets.token_hex(4)}"
+
+
+class Runner:
+    def __init__(
+        self,
+        store: Store,
+        spec: AgentSpec,
+        mcp_doc: dict[str, Any],
+        knowledge: Knowledge,
+        model: Model | None = None,
+        model_cfg: ModelConfig | None = None,
+    ) -> None:
+        self.store = store
+        self.spec = spec
+        self.mcp_doc = mcp_doc
+        self.knowledge = knowledge
+        self.model_cfg = model_cfg or ModelConfig.from_env()
+        self._model = model
+        self.repo = os.environ.get("GITHUB_REPO", "asaf-1/DevOps-Platform")
+
+    @property
+    def model(self) -> Model:
+        if self._model is None:
+            self._model = build_model(self.model_cfg)
+        return self._model
+
+    def instructions(self, alert: dict[str, Any]) -> str:
+        m = self.spec.manifest
+        labels = alert.get("labels", {})
+        parts = [self.spec.prompt.strip()]
+        namespaces = ", ".join(m.allowed_namespaces)
+        parts.append(
+            "## Scope and rules enforced by the runtime\n"
+            f"- Allowed namespaces: {namespaces}. Every Kubernetes tool call must name one.\n"
+            f"- GitOps repository: {self.repo}, base branch main. "
+            "Desired state of the app: gitops/apps/<app>/.\n"
+            "- You may only create branches named agent/incident-<fingerprint> "
+            "and open pull requests from them.\n"
+            f"- Budget: at most {m.max_steps} model steps and {m.token_budget} tokens. "
+            "Be economical.\n"
+            "- Tool calls that break a rule return a line starting with REFUSED; "
+            "read it and adjust."
+        )
+        section = self.knowledge.prompt_section(alert_tags(labels), set(m.knowledge_tags))
+        if section:
+            parts.append(section)
+        text = "\n\n".join(parts)
+        if self.model_cfg.provider == "ollama" and self.model_cfg.name.startswith("qwen3"):
+            text = "/no_think\n" + text  # qwen3: answer without a long thinking block
+        return text
+
+    @staticmethod
+    def user_prompt(alert: dict[str, Any], fingerprint: str) -> str:
+        labels = alert.get("labels", {})
+        annotations = alert.get("annotations", {})
+        return (
+            f"An alert fired. Fingerprint: {fingerprint}\n"
+            f"Alert: {labels.get('alertname', '?')} (severity {labels.get('severity', '?')})\n"
+            f"Namespace: {labels.get('namespace', '?')}  Pod: {labels.get('pod', '?')}  "
+            f"Container: {labels.get('container', '?')}\n"
+            f"Summary: {annotations.get('summary', '')}\n"
+            f"Description: {annotations.get('description', '')}\n"
+            f"Labels: {json.dumps(labels, sort_keys=True)}\n\n"
+            "Diagnose it and propose the fix as a pull request, then answer with the report "
+            "and the pull request URL."
+        )
+
+    async def run(self, run_id: str, alert: dict[str, Any]) -> dict[str, Any]:
+        m = self.spec.manifest
+        fingerprint = str(alert.get("fingerprint") or run_id)
+        guard = ToolGuard(
+            allowed_tools=set(m.allowed_tools),
+            allowed_namespaces=set(m.allowed_namespaces),
+            agent=m.name,
+            run_id=run_id,
+            store=self.store,
+        )
+        toolsets = build_toolsets(self.mcp_doc, m, guard, make_local_toolset(self.repo))
+        self.store.audit(
+            "agent.run.started",
+            actor=m.name,
+            details={
+                "run_id": run_id,
+                "fingerprint": fingerprint,
+                "alert": alert.get("labels", {}),
+                "model": f"{self.model_cfg.provider}:{self.model_cfg.name}",
+            },
+        )
+        agent: Agent[None, str] = Agent(
+            self.model,
+            name=m.name,
+            instructions=self.instructions(alert),
+            toolsets=toolsets,
+            retries=2,
+        )
+        try:
+            result = await agent.run(
+                self.user_prompt(alert, fingerprint),
+                usage_limits=UsageLimits(
+                    request_limit=m.max_steps, total_tokens_limit=m.token_budget
+                ),
+            )
+        except Exception as e:
+            log.exception("run %s failed", run_id)
+            self.store.audit(
+                "agent.run.failed", actor=m.name, details={"run_id": run_id, "error": str(e)[:500]}
+            )
+            return self.store.finish_run(
+                run_id,
+                status="failed",
+                error=str(e)[:2000],
+                usage={"tool_calls": len(guard.records)},
+            )
+        report = str(result.output)
+        pr_url = _find_pr_url(report, guard.records)
+        usage = result.usage()
+        usage_dict = {
+            "requests": getattr(usage, "requests", None),
+            "input_tokens": getattr(usage, "input_tokens", None),
+            "output_tokens": getattr(usage, "output_tokens", None),
+            "total_tokens": getattr(usage, "total_tokens", None),
+            "tool_calls": len(guard.records),
+            "refused_calls": sum(1 for r in guard.records if r.refused),
+        }
+        self.store.audit(
+            "agent.run.finished",
+            actor=m.name,
+            details={"run_id": run_id, "pr_url": pr_url, "usage": usage_dict},
+        )
+        return self.store.finish_run(
+            run_id, status="done", report=report, pr_url=pr_url, usage=usage_dict
+        )
+
+
+def _find_pr_url(report: str, records: list[Any]) -> str | None:
+    m = _PR_URL.search(report)
+    if m:
+        return m.group(0)
+    for rec in reversed(records):
+        if rec.tool.endswith("create_pull_request") and rec.ok:
+            m = _PR_URL.search(rec.preview)
+            if m:
+                return m.group(0)
+    return None
+
+
+def default_paths() -> tuple[Path, Path, Path]:
+    """(agents dir, runbooks dir, agent dir) from env or the repo layout."""
+    agents_dir = Path(os.environ.get("AGENTS_DIR", Path(__file__).resolve().parents[1]))
+    runbooks = Path(os.environ.get("RUNBOOKS_DIR", agents_dir.parent / "docs" / "runbooks"))
+    agent_dir = agents_dir / os.environ.get("AGENT_NAME", "incident_triage")
+    return agents_dir, runbooks, agent_dir
+
+
+def build_runner(store: Store, model: Model | None = None) -> Runner:
+    agents_dir, runbooks_dir, agent_dir = default_paths()
+    capmap = CapabilityMap.load(
+        agents_dir / "tools" / "capabilities.yaml", agents_dir / "tools" / "mcp.yaml"
+    )
+    spec = load_agent(agent_dir, capmap)
+    mcp_doc = load_yaml(agents_dir / "tools" / "mcp.yaml")
+    knowledge = Knowledge.load(runbooks_dir)
+    return Runner(store, spec, mcp_doc, knowledge, model=model)

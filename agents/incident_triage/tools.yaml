@@ -1,0 +1,19 @@
+# Tools the incident-triage agent may call, as "<server>.<tool>". Every
+# entry is checked against agents/tools/capabilities.yaml at startup:
+# cluster tools must be read; github write is the proposal mechanism.
+allowed_tools:
+  # look at the cluster (read only)
+  - kubernetes.kubectl_get
+  - kubernetes.kubectl_describe
+  - kubernetes.kubectl_logs
+  # read the desired state in git and propose a change
+  - github.get_file_contents
+  - github.list_commits
+  - github.create_branch
+  - github.create_or_update_file
+  - github.create_pull_request
+  # metrics and logs
+  - grafana.query_prometheus
+  - grafana.query_loki_logs
+  # recent platform commits touching the GitOps folder
+  - local.git_log

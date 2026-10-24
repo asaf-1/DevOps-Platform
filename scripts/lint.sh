@@ -28,6 +28,18 @@ else
   warn "platform/api/.venv not found; skipping Python checks (see platform/api/README.md)"
 fi
 
+AG="$REPO_ROOT/agents/.venv/bin"
+if [ -x "$AG/ruff" ]; then
+  step "ruff format --check (agents)"
+  check "$AG/ruff" format --check "$REPO_ROOT/agents"
+  step "ruff check (agents)"
+  check "$AG/ruff" check "$REPO_ROOT/agents"
+  step "pytest agents"
+  check bash -c "cd '$REPO_ROOT/agents' && '$AG/pytest' -q"
+else
+  warn "agents/.venv not found; skipping agent runtime checks (pip install -e 'agents[dev]')"
+fi
+
 step "terraform fmt -check"
 check terraform fmt -check -recursive "$REPO_ROOT/infra/terraform"
 
