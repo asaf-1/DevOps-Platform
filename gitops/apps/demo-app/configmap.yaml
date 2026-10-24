@@ -1,0 +1,11 @@
+# Written to by the apply worker: after a request is applied, its outputs
+# land here as <request-id>.<output> keys (plus BUCKET_* for the latest
+# s3-bucket), the worker commits to main, ArgoCD rolls it out and the demo
+# app shows the bucket name. Edit GREETING by hand if you like.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-app-config
+  namespace: demo
+data:
+  GREETING: hello

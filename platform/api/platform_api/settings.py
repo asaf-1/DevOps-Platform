@@ -13,6 +13,14 @@ def _repo_root_default() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
+def sqlalchemy_url(url: str) -> str:
+    """CloudNativePG hands out postgresql://...; SQLAlchemy needs the psycopg dialect named."""
+    for prefix in ("postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
 class Settings(BaseModel):
     database_url: str = "sqlite:///./platform.db"
     repo_root: Path = Field(default_factory=_repo_root_default)
@@ -27,7 +35,9 @@ class Settings(BaseModel):
     def from_env(cls) -> Settings:
         env = os.environ
         return cls(
-            database_url=env.get("DATABASE_URL", cls.model_fields["database_url"].default),
+            database_url=sqlalchemy_url(
+                env.get("DATABASE_URL", cls.model_fields["database_url"].default)
+            ),
             repo_root=Path(env["REPO_ROOT"]) if env.get("REPO_ROOT") else _repo_root_default(),
             catalog_dir=Path(env["CATALOG_DIR"]) if env.get("CATALOG_DIR") else None,
             github_repo=env.get("GITHUB_REPO", cls.model_fields["github_repo"].default),

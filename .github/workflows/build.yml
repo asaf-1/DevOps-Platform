@@ -1,0 +1,92 @@
+# Build and push images to GHCR on every push to main that touches them,
+# tagged with the commit SHA and "main". Then commit the new SHA tag into
+# the manifests so ArgoCD rolls it out; no image updater component needed.
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "platform/api/**"
+      - "platform/catalog/**"
+      - "gitops/apps/demo-app/app.py"
+      - "gitops/apps/demo-app/Dockerfile"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: build-main
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/devops-platform
+
+jobs:
+  images:
+    name: Build images
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: platform-api
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: platform/api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/platform-api:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_BASE }}/platform-api:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: demo-app
+        uses: docker/build-push-action@v6
+        with:
+          context: gitops/apps/demo-app
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/demo-app:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE_BASE }}/demo-app:main
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  bump-manifests:
+    name: Point manifests at the new tag
+    needs: images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update image tags in git
+        env:
+          TAG: ${{ needs.images.outputs.tag }}
+        run: |
+          sed -i -E "s#(ghcr.io/[^/]+/devops-platform/demo-app:)[^\"' ]+#\1${TAG}#" gitops/apps/demo-app/deployment.yaml
+          sed -i -E "s#^(  tag: ).*#\1\"${TAG}\"#" gitops/charts/platform-api/values.yaml
+          git diff --stat
+          if git diff --quiet; then echo "manifests already at ${TAG}"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Deploy ${TAG} [skip ci]"
+          git push

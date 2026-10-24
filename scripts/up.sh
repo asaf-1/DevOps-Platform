@@ -95,6 +95,17 @@ if ! kubectl -n observability get secret grafana-admin >/dev/null 2>&1; then
     --from-literal=admin-user=admin --from-literal=admin-password="$pw" >/dev/null
   say "created secret observability/grafana-admin"
 fi
+# GitHub token for the platform API and apply worker, from .env (never git).
+# Without it the API still runs; requests end "failed" with a clear reason.
+kubectl create namespace platform --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+token="$(grep -E '^PLATFORM_GITHUB_TOKEN=' "$REPO_ROOT/.env" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)"
+if [ -n "$token" ]; then
+  kubectl -n platform create secret generic platform-github --from-literal=token="$token" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+  say "secret platform/platform-github set from .env"
+else
+  warn "PLATFORM_GITHUB_TOKEN not in .env; requests will fail until it is set (PLAN.md 8.4 step 5), then run make up again"
+fi
 kubectl apply -f "$ARGOCD_DIR/project.yaml" -f "$ARGOCD_DIR/root.yaml"
 
 say "6/6 waiting up to $WAIT_TIMEOUT for all Applications to be Synced and Healthy"

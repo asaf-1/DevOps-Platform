@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: platform-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "platform-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "platform-api.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: platform-api
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            {{- include "platform-api.env" . | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+        {{- if .Values.worker.enabled }}
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "platform_api.worker"]
+          env:
+            {{- include "platform-api.env" . | nindent 12 }}
+            - name: WORKER_INTERVAL
+              value: {{ .Values.worker.intervalSeconds | quote }}
+            - name: WORKER_WORKDIR
+              value: /work
+            - name: TF_VAR_localstack_endpoint
+              value: {{ .Values.worker.localstackEndpoint | quote }}
+            # Terraform's pg backend reads the same Postgres URI.
+            - name: PG_CONN_STR
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.secretName }}
+                  key: {{ .Values.database.uriKey }}
+          volumeMounts:
+            - name: work
+              mountPath: /work
+          resources:
+            {{- toYaml .Values.workerResources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+        {{- end }}
+      volumes:
+        - name: work
+          emptyDir: {}
