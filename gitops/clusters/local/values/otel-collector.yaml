@@ -1,0 +1,77 @@
+# OpenTelemetry Collector: one deployment that every service and agent run
+# sends OTLP to. Traces go to Tempo, metrics to Prometheus (remote write),
+# logs to Loki. Vendor backends are exporter config, see the Datadog block.
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi
+
+# Only OTLP in. The chart enables Jaeger and Zipkin ports by default.
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+
+config:
+  receivers:
+    # Remove the chart's default receivers that we do not use.
+    jaeger: null
+    zipkin: null
+    prometheus: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_mib: 384
+    batch:
+      timeout: 5s
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.observability.svc.cluster.local:4317
+      tls:
+        insecure: true
+    prometheusremotewrite:
+      endpoint: http://kps-prometheus.observability.svc.cluster.local:9090/api/v1/write
+      tls:
+        insecure: true
+    otlphttp/loki:
+      endpoint: http://loki.observability.svc.cluster.local:3100/otlp
+    # Phase 4, optional: Datadog trial for screenshots. Create a Secret with
+    # DD_API_KEY, add it to extraEnvs, uncomment this exporter and append
+    # "datadog" to each pipeline's exporters. Nothing else changes.
+    # datadog:
+    #   api:
+    #     key: ${env:DD_API_KEY}
+    #     site: datadoghq.eu
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [prometheusremotewrite]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlphttp/loki]

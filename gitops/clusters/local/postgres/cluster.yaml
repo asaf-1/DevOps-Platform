@@ -1,0 +1,28 @@
+# The platform's Postgres: audit events and platform state for the API, the
+# apply worker and the agent runtime. The operator creates the Secret
+# platform-app (username, password, uri) that those services mount.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: platform
+  namespace: platform
+spec:
+  instances: 1
+  storage:
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  bootstrap:
+    initdb:
+      database: platform
+      owner: platform
+  postgresql:
+    parameters:
+      max_connections: "100"
+      shared_buffers: 64MB
+  monitoring:
+    enablePodMonitor: true

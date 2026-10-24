@@ -1,0 +1,11 @@
+# CloudNativePG operator. The Postgres cluster itself is a Cluster manifest
+# under gitops/clusters/local/postgres/.
+replicaCount: 1
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+monitoring:
+  podMonitorEnabled: false

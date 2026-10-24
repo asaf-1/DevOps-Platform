@@ -1,0 +1,32 @@
+# LocalStack Community inside the cluster. The chart defaults to the Pro
+# image, which needs an auth token; this pins the free one. The NodePort
+# matches gitops/clusters/local/kind.yaml, which maps it to host port 4566.
+image:
+  repository: localstack/localstack
+  tag: "2026.10.2"
+
+service:
+  type: NodePort
+  edgeService:
+    name: edge
+    targetPort: 4566
+    nodePort: 30566
+
+extraEnvVars:
+  - name: SERVICES
+    value: s3,dynamodb,iam,sts,sqs,cloudwatch
+  - name: DEBUG
+    value: "0"
+  - name: EAGER_SERVICE_LOADING
+    value: "1"
+
+# Community edition keeps state in memory; nothing to persist.
+persistence:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

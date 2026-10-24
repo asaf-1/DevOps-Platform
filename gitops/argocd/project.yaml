@@ -1,0 +1,23 @@
+# The one AppProject every platform Application belongs to. Lists the only
+# sources ArgoCD may pull from: this repo and the pinned Helm repositories.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Internal developer platform, local kind cluster
+  sourceRepos:
+    - https://github.com/asaf-1/DevOps-Platform.git
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+    - https://open-telemetry.github.io/opentelemetry-helm-charts
+    - https://kyverno.github.io/kyverno/
+    - https://cloudnative-pg.github.io/charts
+    - https://localstack.github.io/helm-charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

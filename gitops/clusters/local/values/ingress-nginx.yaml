@@ -1,0 +1,25 @@
+# ingress-nginx on kind: the controller runs on the control-plane node and
+# binds host ports 80/443, which kind.yaml maps to the host. Mirrors the
+# upstream "provider/kind" manifest, as Helm values.
+controller:
+  hostPort:
+    enabled: true
+  service:
+    type: NodePort
+  nodeSelector:
+    ingress-ready: "true"
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Equal
+      effect: NoSchedule
+  publishService:
+    enabled: false
+  extraArgs:
+    publish-status-address: localhost
+  watchIngressWithoutClass: true
+  ingressClassResource:
+    default: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 90Mi

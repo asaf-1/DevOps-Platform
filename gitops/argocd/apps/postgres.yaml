@@ -1,0 +1,33 @@
+# The one Postgres cluster the platform API, the apply worker and the agent
+# runtime share (audit events and platform state). Plain manifests, managed
+# by the CloudNativePG operator from the Application above.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/asaf-1/DevOps-Platform.git
+    targetRevision: main
+    path: gitops/clusters/local/postgres
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

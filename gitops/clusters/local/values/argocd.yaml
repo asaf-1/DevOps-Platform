@@ -1,0 +1,37 @@
+# ArgoCD for the local cluster. Installed by scripts/up.sh with Helm (it is
+# the one thing that cannot install itself); everything else is an
+# Application under gitops/argocd/apps/.
+global:
+  domain: argocd.localhost
+
+configs:
+  params:
+    # TLS would end at the ingress; locally there is none, so serve plain HTTP.
+    server.insecure: true
+  cm:
+    # Ignore Kyverno's generated resources and the like when computing diffs.
+    resource.compareoptions: |
+      ignoreAggregatedRoles: true
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    tls: false
+
+dex:
+  enabled: false
+notifications:
+  enabled: false
+
+# Single replica, small requests: a laptop with 24 GB.
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi

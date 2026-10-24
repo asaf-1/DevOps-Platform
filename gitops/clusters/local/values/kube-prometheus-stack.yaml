@@ -1,0 +1,141 @@
+# kube-prometheus-stack for the local cluster: Prometheus, Alertmanager,
+# Grafana (with Loki and Tempo provisioned next to Prometheus), operator,
+# kube-state-metrics and node-exporter. Sized for a laptop.
+fullnameOverride: kps
+
+# kind does not expose etcd, the scheduler, the controller manager or
+# kube-proxy for scraping; drop the targets and their always-firing rules.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+defaultRules:
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    kubeProxy: false
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    # Pick up monitors and rules from every namespace, not only chart-labelled ones.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    # The OTel Collector pushes metrics here with remote write.
+    enableRemoteWriteReceiver: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    retention: 24h
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 1m
+      repeat_interval: 4h
+      # Phase 2 adds a route for severity warning|critical to agent-runtime.
+      routes:
+        - receiver: "null"
+          matchers:
+            - alertname = "Watchdog"
+    receivers:
+      - name: "null"
+      # Placeholder for the agent runtime webhook; the Service appears in Phase 2.
+      - name: agent-runtime
+        webhook_configs:
+          - url: http://agent-runtime.platform.svc.cluster.local:8080/webhooks/alertmanager
+            send_resolved: true
+
+grafana:
+  enabled: true
+  # Created by scripts/up.sh, never in git.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - grafana.localhost
+  grafana.ini:
+    server:
+      root_url: http://grafana.localhost
+    analytics:
+      check_for_updates: false
+      reporting_enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      # The Prometheus datasource the chart provisions gets uid "prometheus".
+      uid: prometheus
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.observability.svc.cluster.local:3100
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            datasourceUid: tempo
+            matcherRegex: '"?trace_id"?[=:]\s*"?(\w+)"?'
+            url: "$${__value.raw}"
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.observability.svc.cluster.local:3200
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi

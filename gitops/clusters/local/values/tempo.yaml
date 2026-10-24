@@ -1,0 +1,17 @@
+# Tempo, monolithic, local disk. Receives OTLP from the OTel Collector and
+# writes service-graph metrics back to Prometheus for Grafana's service map.
+tempo:
+  retention: 24h
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kps-prometheus.observability.svc.cluster.local:9090/api/v1/write
+
+persistence:
+  enabled: true
+  size: 5Gi
