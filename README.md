@@ -20,7 +20,7 @@ real AWS and Claude as configuration switches.
 | Phase | What it delivers | State |
 |---|---|---|
 | 0. Foundations | kind cluster, ArgoCD app of apps, observability stack, Kyverno, Postgres, LocalStack, devcontainer | done |
-| 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | in progress: everything built and unit-tested; end-to-end verify (request -> PR -> approval -> apply -> demo app) pending |
+| 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | done: request -> PR with plan, policy and security checks -> auto-merge -> one-click approval -> in-cluster apply -> audit timeline -> demo app shows its bucket |
 | 2. Agent platform | model-agnostic agent runtime, MCP tool registry with capability labels, incident-triage agent, fix PR flow, Alertmanager wiring | planned |
 | 3. Trust layer | Promptfoo eval suite in CI, safety cases, Kyverno policies against the agent service account, OpenTelemetry traces per run and tool call, Grafana dashboards | planned |
 | 4. Product and polish | one-page UI, DX metrics, optional real-AWS run with OIDC, optional Datadog export | planned |
