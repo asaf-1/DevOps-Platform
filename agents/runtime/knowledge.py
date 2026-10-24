@@ -52,10 +52,21 @@ class Knowledge:
         return cls(books)
 
     def select(self, alert_tags: set[str], agent_tags: set[str]) -> list[Runbook]:
-        """Runbooks whose tags intersect the alert's tags, restricted to the agent's tags."""
+        """Runbooks for this alert, restricted to the agent's tags.
+
+        Specific tags (the keyword derived from the alert name, e.g.
+        imagepull) win; generic tags (kubernetes, the app name) are only a
+        fallback. Otherwise every runbook of the app would be sent and the
+        prompt would grow by thousands of tokens.
+        """
         wanted = {t.lower() for t in alert_tags} & {t.lower() for t in agent_tags}
         if not wanted:
             return []
+        specific = wanted & set(KEYWORDS.values())
+        if specific:
+            hits = [b for b in self.runbooks if b.tags & specific]
+            if hits:
+                return hits
         return [b for b in self.runbooks if b.tags & wanted]
 
     def prompt_section(self, alert_tags: set[str], agent_tags: set[str]) -> str:

@@ -14,8 +14,8 @@ mutation: propose_only
 allowed_namespaces:
   - demo
 allowed_tools_file: tools.yaml
-max_steps: 12
-token_budget: 24000
+max_steps: 8
+token_budget: 32000
 knowledge_tags:
   - kubernetes
   - demo-app

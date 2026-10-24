@@ -18,6 +18,11 @@ aws configure set endpoint_url "${LOCALSTACK_ENDPOINT:-http://host.docker.intern
 echo "==> Pulumi: file backend, no Pulumi Cloud account needed"
 pulumi login --local >/dev/null
 
+echo "==> git: the bind-mounted repo is owned by the host user; identity from GIT_USER_NAME/GIT_USER_EMAIL"
+git config --global --add safe.directory /workspaces/DevOps-Platform
+git config --global user.name "${GIT_USER_NAME:-$(whoami)}"
+git config --global user.email "${GIT_USER_EMAIL:-$(whoami)@users.noreply.github.com}"
+
 echo "==> versions"
 for t in python node npm terraform pulumi kubectl helm kind conftest checkov infracost trivy promptfoo aws docker; do
   printf '%-10s %s\n' "$t" "$("$t" --version 2>/dev/null | head -1 || echo missing)"

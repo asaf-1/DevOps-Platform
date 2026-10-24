@@ -67,6 +67,11 @@ def build_services() -> Services:
     except ManifestViolation as e:
         log.error("REFUSING TO START: %s", e)
         raise SystemExit(f"manifest violation: {e}") from e
+    # Runs are in-process; anything still "running" was interrupted by a restart.
+    for run in store.list_runs(limit=200):
+        if run["status"] == "running":
+            store.finish_run(run["id"], status="failed", error="interrupted by a runtime restart")
+            log.warning("run %s marked failed: interrupted by restart", run["id"])
     return Services(store, runner)
 
 
@@ -134,8 +139,11 @@ def _fingerprint(alert: Alert) -> str:
 
 
 def _recent(run: dict[str, Any]) -> bool:
+    """A run for this alert is in progress or finished recently; failed runs do not count."""
     if run["status"] == "running":
         return True
+    if run["status"] == "failed":
+        return False
     finished = run.get("finished_at")
     if not finished:
         return True

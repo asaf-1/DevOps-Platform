@@ -17,15 +17,21 @@ if git log -1 --format=%s -- "$FILE" | grep -q '^\[break\]'; then
   die "the demo app is already broken (last commit on $FILE is a [break]); run make fix first"
 fi
 
-git pull -q --rebase origin main
+git pull -q --rebase --autostash origin main
 say "breaking $FILE: image tag -> does-not-exist, memory limit -> 16Mi"
 sed -i -E 's#(ghcr.io/[^/]+/devops-platform/demo-app:)[^"'"'"' ]+#\1does-not-exist#' "$FILE"
+# Both request and limit: a request above the limit is rejected by the API
+# server, and then nothing would roll out at all.
 sed -i -E 's#^(              memory: )64Mi$#\116Mi#' "$FILE"
+sed -i -E 's#^(              memory: )32Mi$#\116Mi#' "$FILE"
 git diff --stat -- "$FILE"
 git diff -- "$FILE" | grep -E '^[-+] ' | grep -vE '^(---|\+\+\+)'
 
 git add "$FILE"
-git commit -q -m "[break] demo-app: nonexistent image tag and 16Mi memory limit (make break)"
+# Identity: the container may have none; fall back to the OS user.
+git -c user.name="${GIT_USER_NAME:-$(git config user.name || whoami)}" \
+    -c user.email="${GIT_USER_EMAIL:-$(git config user.email || echo "$(whoami)@users.noreply.github.com")}" \
+    commit -q -m "[break] demo-app: nonexistent image tag and 16Mi memory limit (make break)"
 say "pushing to main"
 git push -q "https://x-access-token:${TOKEN}@github.com/asaf-1/DevOps-Platform.git" HEAD:main
 say "pushed $(git rev-parse --short HEAD)"

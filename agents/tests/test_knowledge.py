@@ -24,6 +24,13 @@ def test_selection_is_an_intersection() -> None:
     chosen = k.select(alert_tags({"alertname": "DemoAppOOMKilled", "app": "demo-app"}), agent_tags)
     stems = {b.path.stem for b in chosen}
     assert "oomkilled" in stems
+    # the specific keyword wins: the imagepull runbook is not sent for an OOM alert
+    assert "imagepullbackoff" not in stems
+    # an alert with no keyword match falls back to the generic app runbooks
+    generic = k.select(
+        alert_tags({"alertname": "DemoAppUnknownThing", "app": "demo-app"}), agent_tags
+    )
+    assert len(generic) == 3
     # an agent that only knows about imagepull does not get the OOM runbook for an imagepull alert
     chosen2 = k.select(alert_tags({"alertname": "DemoAppImagePullBackOff"}), {"imagepull"})
     assert {b.path.stem for b in chosen2} == {"imagepullbackoff"}

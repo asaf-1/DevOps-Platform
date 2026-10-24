@@ -16,8 +16,12 @@ def test_capability_rules_cover_the_real_allowlist(capmap: CapabilityMap) -> Non
     resolved = validate_manifest(manifest, capmap)
     assert resolved["kubernetes.kubectl_get"] == {"capability": "read", "target": "cluster"}
     assert resolved["github.create_pull_request"] == {"capability": "write", "target": "github"}
-    assert resolved["grafana.query_loki_logs"] == {"capability": "read", "target": "observability"}
-    assert resolved["local.git_log"] == {"capability": "read", "target": "local"}
+    assert all(
+        v["capability"] == "read" for t, v in resolved.items() if t.startswith("kubernetes.")
+    )
+    # labels exist for tools this agent does not use today
+    assert capmap.capability("grafana.query_loki_logs") == "read"
+    assert capmap.capability("local.git_log") == "read"
     assert manifest.mutation == "propose_only"
     assert manifest.allowed_namespaces == ["demo"]
 

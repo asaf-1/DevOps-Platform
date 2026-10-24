@@ -41,11 +41,19 @@ def build_model(cfg: ModelConfig | None = None) -> Model:
     """A Pydantic AI model for the configured provider."""
     cfg = cfg or ModelConfig.from_env()
     if cfg.provider == "ollama":
-        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.models.openai import OpenAIChatModel, OpenAIChatModelSettings
         from pydantic_ai.providers.ollama import OllamaProvider
 
+        # A CPU model needs a long request timeout (one step can take minutes
+        # of prompt processing) and no thinking block before each tool call.
+        settings = OpenAIChatModelSettings(
+            timeout=float(os.environ.get("MODEL_REQUEST_TIMEOUT", "900")),
+            extra_body={"think": False},
+        )
         return OpenAIChatModel(
-            cfg.name, provider=OllamaProvider(base_url=f"{cfg.ollama_base_url}/v1")
+            cfg.name,
+            provider=OllamaProvider(base_url=f"{cfg.ollama_base_url}/v1"),
+            settings=settings,
         )
     if cfg.provider == "anthropic":
         if not os.environ.get("ANTHROPIC_API_KEY"):
