@@ -15,7 +15,7 @@ VALUES_DIR="$REPO_ROOT/gitops/clusters/local/values"
 ARGOCD_DIR="$REPO_ROOT/gitops/argocd"
 WAIT_TIMEOUT="${UP_WAIT_TIMEOUT:-15m}"
 
-need kind kubectl helm docker
+need kind kubectl helm docker jq
 
 say "1/6 kind cluster '$CLUSTER_NAME'"
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
@@ -64,7 +64,8 @@ kubectl wait --for=condition=Ready nodes --all --timeout=5m >/dev/null
 # earlier interrupted run (helm refuses to upgrade those).
 helm_install() {
   local release="$1" chart="$2" ns="$3" version="$4" values="$5" status
-  status="$(helm status "$release" -n "$ns" -o json 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*/\1/p' | head -1 || true)"
+  # .info.status is "deployed", "failed", "pending-install", ... (empty if absent).
+  status="$(helm status "$release" -n "$ns" -o json 2>/dev/null | jq -r '.info.status // empty' 2>/dev/null || true)"
   if [ -n "$status" ] && [ "$status" != "deployed" ]; then
     warn "release $release is '$status' from an earlier run; uninstalling before reinstall"
     helm uninstall "$release" -n "$ns" --wait >/dev/null 2>&1 || true
