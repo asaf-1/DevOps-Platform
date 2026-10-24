@@ -26,7 +26,8 @@ else
     # so this container can join it (step 2) and reach the API server.
     docker network inspect kind >/dev/null 2>&1 || docker network create kind >/dev/null
   fi
-  kind create cluster --name "$CLUSTER_NAME" --config "$KIND_CONFIG" --wait 120s
+  # 5m: a laptop needs more than kind's default to get the control plane Ready.
+  kind create cluster --name "$CLUSTER_NAME" --config "$KIND_CONFIG" --wait 5m
 fi
 
 say "2/6 kubeconfig"
@@ -44,21 +45,45 @@ fi
 kubectl cluster-info --request-timeout=15s >/dev/null
 say "API server reachable, context $(kubectl config current-context)"
 
+# kind installs its CNI (kindnet) and a default StorageClass right after
+# kubeadm. On this laptop that step has been seen to report success and leave
+# nothing behind, which keeps every node NotReady. Re-apply from the node's
+# own manifests when the DaemonSet is missing; harmless when it is there.
+if ! kubectl -n kube-system get daemonset kindnet >/dev/null 2>&1; then
+  warn "kindnet DaemonSet missing; re-applying kind's CNI and storage manifests"
+  node="${CLUSTER_NAME}-control-plane"
+  subnet="$(docker exec "$node" sh -c 'grep -A3 "^networking:" /kind/kubeadm.conf | grep podSubnet' | awk '{print $2}' | tr -d '"')"
+  docker exec "$node" sh -c "sed 's#{{ *\.PodSubnet *}}#${subnet:-10.244.0.0/16}#g' /kind/manifests/default-cni.yaml | kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f -" >/dev/null
+  docker exec "$node" kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f /kind/manifests/default-storage.yaml >/dev/null
+fi
+say "waiting for nodes to be Ready"
+kubectl wait --for=condition=Ready nodes --all --timeout=5m >/dev/null
+
+# helm_install <release> <chart> <namespace> <version> <values>: upgrade or
+# install, after removing a release left in a failed or pending state by an
+# earlier interrupted run (helm refuses to upgrade those).
+helm_install() {
+  local release="$1" chart="$2" ns="$3" version="$4" values="$5" status
+  status="$(helm status "$release" -n "$ns" -o json 2>/dev/null | sed -n 's/.*"status":"\([^"]*\)".*/\1/p' | head -1 || true)"
+  if [ -n "$status" ] && [ "$status" != "deployed" ]; then
+    warn "release $release is '$status' from an earlier run; uninstalling before reinstall"
+    helm uninstall "$release" -n "$ns" --wait >/dev/null 2>&1 || true
+  fi
+  helm upgrade --install "$release" "$chart" \
+    --namespace "$ns" --create-namespace \
+    --version "$version" --values "$values" \
+    --wait --timeout 10m
+}
+
 say "3/6 ingress-nginx (chart $INGRESS_NGINX_CHART_VERSION)"
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx --force-update >/dev/null
-helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
-  --namespace ingress-nginx --create-namespace \
-  --version "$INGRESS_NGINX_CHART_VERSION" \
-  --values "$VALUES_DIR/ingress-nginx.yaml" \
-  --wait --timeout 5m
+helm_install ingress-nginx ingress-nginx/ingress-nginx ingress-nginx \
+  "$INGRESS_NGINX_CHART_VERSION" "$VALUES_DIR/ingress-nginx.yaml"
 
 say "4/6 ArgoCD (chart $ARGOCD_CHART_VERSION)"
 helm repo add argo https://argoproj.github.io/argo-helm --force-update >/dev/null
-helm upgrade --install argocd argo/argo-cd \
-  --namespace argocd --create-namespace \
-  --version "$ARGOCD_CHART_VERSION" \
-  --values "$VALUES_DIR/argocd.yaml" \
-  --wait --timeout 10m
+helm_install argocd argo/argo-cd argocd \
+  "$ARGOCD_CHART_VERSION" "$VALUES_DIR/argocd.yaml"
 
 say "5/6 secrets that stay out of git, then the ArgoCD project and root Application"
 # Grafana admin password: generated once per cluster, read by the

@@ -1,9 +1,12 @@
-# LocalStack Community inside the cluster. The chart defaults to the Pro
-# image, which needs an auth token; this pins the free one. The NodePort
-# matches gitops/clusters/local/kind.yaml, which maps it to host port 4566.
+# LocalStack inside the cluster. The chart defaults to the Pro image, which
+# needs an auth token. Since the 2026 releases the regular image needs one
+# too (exit code 55, "license activation failed"); 4.14.0 is the last line
+# that runs with no account, so it is pinned here (see docs/adr/0001). The
+# NodePort matches gitops/clusters/local/kind.yaml, which maps it to host
+# port 4566.
 image:
   repository: localstack/localstack
-  tag: "2026.10.2"
+  tag: "4.14.0"
 
 service:
   type: NodePort

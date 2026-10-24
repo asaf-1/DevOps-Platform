@@ -30,6 +30,12 @@ hours to record the demo, and only when Asaf asks for it in that session.
 - LocalStack Community does not emulate everything. The catalog stays on
   services it covers well (S3, DynamoDB, IAM, SQS). Anything beyond that
   is a Phase 4 real-AWS demonstration, not a local one.
+- LocalStack's 2026 releases require an account auth token even for the
+  free tier (the container exits with "license activation failed"). The
+  image is pinned to 4.14.0, the last line that starts without one, so
+  that a clone still needs no accounts. Moving past it means adding a
+  `LOCALSTACK_AUTH_TOKEN` secret created by `up.sh` and a repo secret for
+  CI, or switching to Moto.
 - The same Terraform modules run against both backends; the environment
   folder (`infra/terraform/envs/local` vs `dev`) selects provider endpoints
   and state backend. Any drift between the two is a bug to fix in the
