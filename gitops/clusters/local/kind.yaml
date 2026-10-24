@@ -3,8 +3,10 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: platform
+# kind 0.33.0's default node image, pinned by digest (Kubernetes 1.37.0).
 nodes:
   - role: control-plane
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
     # ingress-nginx's kind manifest schedules the controller on this label and
     # uses hostPort 80/443, which these mappings expose on the host.
     kubeadmConfigPatches:
@@ -27,3 +29,4 @@ nodes:
         hostPort: 4566
         protocol: TCP
   - role: worker
+    image: kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5

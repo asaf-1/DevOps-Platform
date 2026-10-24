@@ -28,9 +28,8 @@ make down     # delete the cluster
 
 ## Where things are
 
-- [PLAN.md](PLAN.md): what this proves, the architecture, the phased task
-  lists and the current status. Start there.
 - [docs/adr/](docs/adr/): architecture decision records for every
-  non-obvious choice.
+  non-obvious choice. Start there to understand why things look the way
+  they do.
 - `gitops/`: ArgoCD project, app of apps, per-component Helm values.
 - `scripts/` and the `Makefile`: the only commands you need.

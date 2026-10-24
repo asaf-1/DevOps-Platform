@@ -61,5 +61,10 @@ agents/evals/output/
 Thumbs.db
 *.swp
 
-# Claude Code local overrides
-.claude/settings.local.json
+# Working notes and assistant config: local only, not part of the product.
+PLAN.md
+CLAUDE.md
+.claude/
+.mcp.json
+docs/local/
+NOTES*.md
