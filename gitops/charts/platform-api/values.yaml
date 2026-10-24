@@ -2,7 +2,7 @@
 # every push to main that changes platform/.
 image:
   repository: ghcr.io/asaf-1/devops-platform/platform-api
-  tag: "sha-31aa3bf"
+  tag: "sha-d38fccf"
   pullPolicy: Always
 
 replicaCount: 1
