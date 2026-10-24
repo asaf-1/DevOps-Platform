@@ -1,0 +1,18 @@
+# Normalise to LF in the repo and on checkout. Scripts run in the Linux
+# devcontainer and break with CRLF, and the host is Windows.
+* text=auto eol=lf
+
+*.sh text eol=lf
+Makefile text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.tf text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
