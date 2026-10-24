@@ -105,9 +105,9 @@ fi
 
 cat <<EOF
 
-ArgoCD   http://argocd.localhost     user admin, password:
+ArgoCD   http://argocd.localhost:8080    user admin, password:
          $(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' 2>/dev/null | base64 -d || echo '(not yet created)')
-Grafana  http://grafana.localhost    user admin, password:
+Grafana  http://grafana.localhost:8080   user admin, password:
          $(kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d)
 LocalStack  http://localhost:4566 on the host, ${LOCALSTACK_ENDPOINT:-http://host.docker.internal:4566} in the devcontainer
 

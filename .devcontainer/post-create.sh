@@ -19,6 +19,7 @@ echo "==> Pulumi: file backend, no Pulumi Cloud account needed"
 pulumi login --local >/dev/null
 
 echo "==> versions"
-for t in python node npm terraform pulumi kubectl helm kind conftest checkov infracost argocd trivy promptfoo aws docker; do
+for t in python node npm terraform pulumi kubectl helm kind conftest checkov infracost trivy promptfoo aws docker; do
   printf '%-10s %s\n' "$t" "$("$t" --version 2>/dev/null | head -1 || echo missing)"
 done
+printf '%-10s %s\n' argocd "$(argocd version --client --short 2>/dev/null || echo missing)"

@@ -130,8 +130,10 @@ make down     # delete the cluster
 ```
 
 `make up` ends by printing the ArgoCD and Grafana URLs and passwords
-(http://argocd.localhost and http://grafana.localhost). The Grafana
-password is generated per cluster and lives only in a Kubernetes Secret.
+(http://argocd.localhost:8080 and http://grafana.localhost:8080; the
+ingress uses host ports 8080/8443 so it never fights with whatever already
+listens on 80). The Grafana password is generated per cluster and lives
+only in a Kubernetes Secret.
 
 All targets:
 

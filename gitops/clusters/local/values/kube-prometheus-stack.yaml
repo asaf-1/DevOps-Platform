@@ -88,7 +88,7 @@ grafana:
       - grafana.localhost
   grafana.ini:
     server:
-      root_url: http://grafana.localhost
+      root_url: http://grafana.localhost:8080
     analytics:
       check_for_updates: false
       reporting_enabled: false

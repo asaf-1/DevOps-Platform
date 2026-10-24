@@ -9,6 +9,8 @@ configs:
     # TLS would end at the ingress; locally there is none, so serve plain HTTP.
     server.insecure: true
   cm:
+    # External URL as the browser sees it (ingress on host port 8080).
+    url: http://argocd.localhost:8080
     # Ignore Kyverno's generated resources and the like when computing diffs.
     resource.compareoptions: |
       ignoreAggregatedRoles: true
