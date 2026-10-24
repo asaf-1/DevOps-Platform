@@ -25,10 +25,19 @@ Postgres against LocalStack (or real AWS in Phase 4 with IRSA), records
 audit events for every transition, and commits the outputs back to the
 GitOps folder for ArgoCD to roll out.
 
+Merging is not the human decision; applying is. Once `iac-pr` is green the
+worker merges the request PR itself (catalog types opt in with
+`auto_merge: true`, the default), recorded as a `merged` audit event by
+`platform-auto-merge`. The reviewer's single click is the deployment
+approval that releases the apply.
+
 ## Consequences
 
 - Cloud credentials and Terraform state never leave the cluster; CI holds
   only a fine-grained GitHub token.
+- One click per request for the reviewer, on the step that matters.
+  `approval_required: false` types (none yet) would need the gate skipped
+  per path, which is a later change to `iac-approve`.
 - Public repo is required: environment protection rules are free only
   there (PLAN.md section 4).
 - The audit trail has a human actor for the approval (the merger's login

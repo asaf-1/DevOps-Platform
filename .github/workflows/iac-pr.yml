@@ -83,8 +83,9 @@ jobs:
         working-directory: ${{ env.ENV_DIR }}
         env:
           TF_VAR_localstack_endpoint: http://localhost:4566
-          KUBE_CONFIG_PATH: ${{ env.KUBECONFIG }}
         run: |
+          # KUBECONFIG is exported by the kind step at runtime.
+          export KUBE_CONFIG_PATH="$KUBECONFIG"
           terraform plan -input=false -no-color -out=plan.out 2>&1 | tee plan.txt
           terraform show -json plan.out > plan.json
           terraform show -no-color plan.out > plan-full.txt

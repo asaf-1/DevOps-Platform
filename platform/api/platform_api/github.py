@@ -107,6 +107,15 @@ class GitHubClient:
     def get_pull_request(self, number: int) -> PullRequestInfo:
         return PullRequestInfo(self._request("GET", f"/pulls/{number}"))
 
+    def merge_pull_request(self, number: int, title: str, method: str = "squash") -> str:
+        """Merge a PR and return the merge commit sha. GitHub refuses when blocked."""
+        data = self._request(
+            "PUT",
+            f"/pulls/{number}/merge",
+            json={"commit_title": title, "merge_method": method},
+        )
+        return str(data["sha"])
+
     def list_pull_requests(
         self, *, state: str = "closed", label: str | None = None
     ) -> list[PullRequestInfo]:

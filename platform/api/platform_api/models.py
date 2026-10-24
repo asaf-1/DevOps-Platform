@@ -34,6 +34,9 @@ class CatalogType(BaseModel):
     owner_team: str
     policy_set: str
     approval_required: bool = True
+    # Merge the request PR automatically once CI is green. The approval gate
+    # on the apply still applies when approval_required is true.
+    auto_merge: bool = True
     environments: list[str] = Field(default_factory=lambda: ["local"])
     outputs: list[str] = Field(default_factory=list)
     input_schema: dict[str, Any] = Field(alias="schema")

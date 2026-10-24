@@ -36,6 +36,7 @@ from typing import Any, Protocol
 import httpx
 import yaml
 
+from .catalog import Catalog
 from .github import GitHubClient, GitHubError
 from .models import RequestState, ResourceRequest
 from .settings import Settings
@@ -52,6 +53,8 @@ ACTOR = "apply-worker"
 
 class WorkerGitHub(Protocol):
     def get_pull_request(self, number: int) -> dict[str, Any]: ...
+
+    def merge_pull_request(self, number: int, title: str, method: str = "squash") -> str: ...
 
     def workflow_run_conclusion(self, workflow_file: str, head_sha: str) -> str | None: ...
 
@@ -105,12 +108,15 @@ class Worker:
         run_apply: RunApply,
         *,
         base_branch: str = "main",
+        auto_merge_types: set[str] | None = None,
     ) -> None:
         self.store = store
         self.github = github
         self.fetch_repo = fetch_repo
         self.run_apply = run_apply
         self.base_branch = base_branch
+        # Catalog types whose PRs the platform merges itself once CI is green.
+        self.auto_merge_types = auto_merge_types or set()
 
     # one pass
 
@@ -175,6 +181,28 @@ class Worker:
                 )
                 req = self.store.get_request(req.id) or req
 
+        # CI is green and the PR is still open: merge it if the type allows.
+        if (
+            req.state == RequestState.PLANNED
+            and pr.get("state") == "open"
+            and not pr.get("merged_at")
+            and req.type in self.auto_merge_types
+        ):
+            title = f"[{req.type}] {req.inputs.get('name', req.id)} (request {req.id})"
+            try:
+                merge_sha = self.github.merge_pull_request(req.pr_number, title)
+            except GitHubError as e:
+                log.warning("%s: auto-merge of PR #%s refused: %s", req.id, req.pr_number, e)
+            else:
+                self.store.add_event(
+                    "merged",
+                    actor="platform-auto-merge",
+                    request_id=req.id,
+                    details={"pr_number": req.pr_number, "merge_commit_sha": merge_sha},
+                )
+                changed = True
+                pr = self.github.get_pull_request(req.pr_number)
+
         if pr.get("state") == "closed" and not pr.get("merged_at"):
             self.store.transition(
                 req.id,
@@ -225,25 +253,33 @@ class Worker:
             raise KeyError(request_id)
         if req.state != RequestState.FAILED:
             raise ValueError(f"{request_id} is {req.state}, not failed")
-        if not any(e.event == "approved" for e in self.store.list_events(request_id)):
+        merge_sha = self._merge_sha(request_id)
+        if not merge_sha:
             raise ValueError(f"{request_id} was never approved; open a new request instead")
         return self.store.transition(
             request_id,
             RequestState.APPROVED,
             actor=actor,
             actor_type="human",
-            details={"reason": "manual retry after failure", "previous_error": req.error},
+            details={
+                "reason": "manual retry after failure",
+                "previous_error": req.error,
+                "merge_commit_sha": merge_sha,
+            },
             error=None,
         )
+
+    def _merge_sha(self, request_id: str) -> str | None:
+        """The merge commit from the latest approved event that recorded one."""
+        for e in reversed(self.store.list_events(request_id)):
+            if e.event == "approved" and e.details.get("merge_commit_sha"):
+                return str(e.details["merge_commit_sha"])
+        return None
 
     # approved -> applied
 
     def _apply(self, req: ResourceRequest) -> None:
-        events = self.store.list_events(req.id)
-        merge_sha = next(
-            (e.details.get("merge_commit_sha") for e in reversed(events) if e.event == "approved"),
-            None,
-        )
+        merge_sha = self._merge_sha(req.id)
         if not merge_sha:
             self.store.transition(
                 req.id,
@@ -446,12 +482,15 @@ def build_worker(settings: Settings | None = None, cfg: WorkerConfig | None = No
         api_url=settings.github_api_url,
     )
     store = Store(make_engine(settings.database_url))
+    catalog = Catalog(settings.catalog_dir)
+    auto_merge_types = {t.type for t in catalog.types.values() if t.auto_merge}
     return Worker(
         store,
         github,
         github_fetch_repo(github, cfg.workdir),
         terraform_apply(cfg),
         base_branch=cfg.base_branch,
+        auto_merge_types=auto_merge_types,
     )
 
 

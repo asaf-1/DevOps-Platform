@@ -41,6 +41,21 @@ class FakeGitHub:
         assert number == 7
         return dict(self.pr)
 
+    def merge_pull_request(self, number: int, title: str, method: str = "squash") -> str:
+        assert number == 7
+        if self.pr.get("merged_at"):
+            raise GitHubError("405: already merged")
+        self.merges = getattr(self, "merges", []) + [(title, method)]
+        self.pr.update(
+            {
+                "state": "closed",
+                "merged_at": "2026-10-24T21:00:00Z",
+                "merge_commit_sha": "merge222",
+                "merged_by": {"login": "platform-bot"},
+            }
+        )
+        return "merge222"
+
     def workflow_run_conclusion(self, workflow_file: str, head_sha: str) -> str | None:
         return self.runs.get((workflow_file, head_sha))
 
@@ -241,3 +256,32 @@ def test_retry_after_failed_apply(world) -> None:
     # cannot retry something that is not failed, or never approved
     with pytest.raises(ValueError):
         worker.retry("r-abc123")
+
+
+def test_auto_merge_when_ci_is_green(world) -> None:
+    store, gh, worker, _, applies, _ = world
+    worker.auto_merge_types = {"s3-bucket"}
+
+    gh.runs[("iac-pr.yml", "head111")] = "success"
+    assert worker.run_once() == ["r-abc123"]
+    # merged by the platform, recorded, waiting for the human approval
+    assert gh.merges == [("[s3-bucket] demo-uploads (request r-abc123)", "squash")]
+    assert gh.pr["merged_at"] is not None
+    assert store.get_request("r-abc123").state == RequestState.PLANNED
+    assert events(store, "r-abc123")[-2:] == ["planned", "merged"]
+
+    # the approval gate still decides the apply
+    gh.runs[("iac-approve.yml", "merge222")] = "success"
+    worker.run_once()
+    assert store.get_request("r-abc123").state == RequestState.DEPLOYED
+    assert applies == [("local", "r-abc123")]
+
+
+def test_no_auto_merge_for_other_types(world) -> None:
+    store, gh, worker, *_ = world
+    worker.auto_merge_types = {"dynamodb-table"}
+    gh.runs[("iac-pr.yml", "head111")] = "success"
+    worker.run_once()
+    assert not getattr(gh, "merges", [])
+    assert gh.pr["state"] == "open"
+    assert store.get_request("r-abc123").state == RequestState.PLANNED

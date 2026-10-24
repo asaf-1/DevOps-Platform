@@ -35,10 +35,12 @@ real AWS and Claude as configuration switches.
 - One command (`make request`) turns a request into a pull request with one
   Terraform file. CI runs `terraform plan`, OPA/Conftest policies, Checkov,
   Trivy and an Infracost estimate, and posts them on the PR.
-- A GitHub environment with required reviewers is the approval gate. The
-  apply does not run in CI: a worker inside the cluster polls for approved
-  merges, runs Terraform, records the audit event and commits outputs back
-  to the GitOps folder. Cloud credentials never leave the cluster.
+- When CI is green the platform merges the request PR itself (per catalog
+  type, `auto_merge`). A GitHub environment with required reviewers is the
+  approval gate on the apply: one human click. The apply does not run in
+  CI: a worker inside the cluster polls for approved merges, runs
+  Terraform, records the audit event and commits outputs back to the
+  GitOps folder. Cloud credentials never leave the cluster.
 - Terraform for the reviewed path; Pulumi (TypeScript, Automation API) for
   programmatic ephemeral preview environments.
 

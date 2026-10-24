@@ -6,6 +6,7 @@ module: infra/terraform/modules/k8s-namespace
 owner_team: platform
 policy_set: terraform-default
 approval_required: true
+auto_merge: true
 environments:
   - local
 outputs:
