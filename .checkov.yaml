@@ -1,0 +1,23 @@
+# Checkov configuration for infra/terraform. Everything not listed here
+# must pass. Each skip is a conscious MVP scope decision, not an oversight;
+# revisit when the platform targets a real account with a budget for it.
+framework:
+  - terraform
+directory:
+  - infra/terraform
+compact: true
+quiet: true
+skip-check:
+  # S3: AES256 (SSE-S3) is on by default; a KMS customer managed key adds
+  # per-request KMS cost and key management the local demo has no need for.
+  - CKV_AWS_145
+  # S3: access logging needs a second log bucket per request; out of scope.
+  - CKV_AWS_18
+  # S3: cross-region replication is a cost and compliance choice per team.
+  - CKV_AWS_144
+  # S3: event notifications are application wiring, not a safe default.
+  - CKV2_AWS_62
+  # DynamoDB: encryption is on with the AWS owned key; a CMK is a cost choice.
+  - CKV_AWS_119
+  # DynamoDB: small tables are on-demand; provisioned sizes are fixed by design.
+  - CKV2_AWS_16

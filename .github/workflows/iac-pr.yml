@@ -1,0 +1,183 @@
+# Every pull request that touches Terraform gets: fmt, validate, a real plan
+# against LocalStack (service container) and a throwaway kind cluster, the
+# OPA policy set, Checkov, an Infracost estimate, and the plan summary as a
+# PR comment. The plan JSON is kept as an artifact. Nothing is applied here.
+name: iac-pr
+
+on:
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - "infra/policies/terraform/**"
+      - ".github/workflows/iac-pr.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: iac-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: 1.16.6
+  CONFTEST_VERSION: 0.71.1
+  ENV_DIR: infra/terraform/envs/local
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "0"
+
+jobs:
+  plan:
+    name: Plan, policy, cost
+    runs-on: ubuntu-latest
+    services:
+      localstack:
+        image: localstack/localstack:4.14.0
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: s3,dynamodb,iam,sts,sqs,cloudwatch
+          EAGER_SERVICE_LOADING: "1"
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health || exit 1"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Install Conftest
+        run: |
+          curl -fsSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin conftest
+          conftest --version
+
+      # The kubernetes provider needs a real API server to plan namespaces.
+      - name: Start a throwaway kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: ci
+          wait: 120s
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff infra/terraform
+
+      - name: Policy unit tests
+        run: conftest verify -p infra/policies/terraform -d infra/policies/terraform/tests/fixtures
+
+      - name: terraform init (throwaway local backend)
+        working-directory: ${{ env.ENV_DIR }}
+        run: |
+          printf 'terraform {\n  backend "local" {\n    path = ".terraform/ci.tfstate"\n  }\n}\n' > backend_override.tf
+          terraform init -input=false -no-color
+
+      - name: terraform validate
+        working-directory: ${{ env.ENV_DIR }}
+        run: terraform validate -no-color
+
+      - name: terraform plan
+        id: plan
+        working-directory: ${{ env.ENV_DIR }}
+        env:
+          TF_VAR_localstack_endpoint: http://localhost:4566
+          KUBE_CONFIG_PATH: ${{ env.KUBECONFIG }}
+        run: |
+          terraform plan -input=false -no-color -out=plan.out 2>&1 | tee plan.txt
+          terraform show -json plan.out > plan.json
+          terraform show -no-color plan.out > plan-full.txt
+          echo "summary=$(grep -E '^Plan:|^No changes' plan.txt | head -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Policy check on the plan (Conftest)
+        id: conftest
+        working-directory: ${{ env.ENV_DIR }}
+        run: |
+          set +e
+          conftest test plan.json -p "$GITHUB_WORKSPACE/infra/policies/terraform" --no-color 2>&1 | tee conftest.txt
+          echo "exit=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/terraform
+          framework: terraform
+          config_file: .checkov.yaml
+          output_format: cli
+          soft_fail: false
+          output_file_path: checkov-results
+
+      - name: Infracost
+        id: infracost
+        if: ${{ env.INFRACOST_API_KEY != '' }}
+        env:
+          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          infracost breakdown --path "$ENV_DIR/plan.json" --format json --out-file infracost.json
+          infracost output --path infracost.json --format github-comment --out-file infracost.md
+          infracost comment github --path infracost.json \
+            --repo "$GITHUB_REPOSITORY" --pull-request "${{ github.event.pull_request.number }}" \
+            --github-token "${{ github.token }}" --behavior update
+
+      - name: Upload plan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.event.pull_request.number }}
+          path: |
+            ${{ env.ENV_DIR }}/plan.json
+            ${{ env.ENV_DIR }}/plan-full.txt
+            ${{ env.ENV_DIR }}/conftest.txt
+            checkov-results
+          retention-days: 14
+
+      - name: Comment plan summary on the PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SUMMARY: ${{ steps.plan.outputs.summary }}
+          CONFTEST_EXIT: ${{ steps.conftest.outputs.exit }}
+        run: |
+          cd "$ENV_DIR"
+          policy="passed"; [ "${CONFTEST_EXIT:-1}" = "0" ] || policy="FAILED"
+          checkov_line="$(grep -E 'Passed checks:|Failed checks:' "$GITHUB_WORKSPACE/checkov-results/results_cli.txt" 2>/dev/null | tr '\n' ' ' || echo 'see artifact')"
+          {
+            echo "<!-- iac-pr-plan -->"
+            echo "## Terraform plan"
+            echo
+            echo "**${SUMMARY:-plan failed}**"
+            echo
+            echo "- Policy (Conftest, terraform-default): **${policy}**"
+            echo "- Checkov: ${checkov_line}"
+            echo "- Infracost: $( [ -n "${INFRACOST_API_KEY:-}" ] && echo 'see the Infracost comment' || echo 'not configured (INFRACOST_API_KEY)' )"
+            echo
+            echo "<details><summary>Plan</summary>"
+            echo
+            echo '```'
+            head -c 60000 plan-full.txt
+            echo '```'
+            echo "</details>"
+            echo
+            echo "<details><summary>Policy output</summary>"
+            echo
+            echo '```'
+            head -c 10000 conftest.txt
+            echo '```'
+            echo "</details>"
+          } > comment.md
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --jq '.[] | select(.body | startswith("<!-- iac-pr-plan -->")) | .id' | head -1)"
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@comment.md >/dev/null
+          else
+            gh pr comment "$PR" --body-file comment.md
+          fi
+
+      - name: Fail if policy failed
+        if: ${{ steps.conftest.outputs.exit != '0' }}
+        run: |
+          echo "Conftest denied the plan; see the PR comment."
+          exit 1

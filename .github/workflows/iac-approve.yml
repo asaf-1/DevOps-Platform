@@ -1,0 +1,30 @@
+# The approval gate. Runs on every push to main that touches a request file
+# and does nothing except wait for a reviewer of the "production" environment
+# (Settings > Environments > production > Required reviewers). Its success
+# on the merge commit is the signal the in-cluster apply worker waits for;
+# the apply itself never runs here, so cloud credentials never reach CI.
+name: iac-approve
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/terraform/envs/*/requests/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iac-approve-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    name: Approve apply
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Record approval
+        run: |
+          echo "Approved for apply: ${{ github.sha }} by ${{ github.actor }}"
+          echo "The apply worker in the cluster picks this up within a minute."

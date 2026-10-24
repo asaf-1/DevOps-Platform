@@ -39,6 +39,11 @@ done
 step "conftest verify (policy unit tests)"
 check conftest verify -p "$REPO_ROOT/infra/policies/terraform" -d "$REPO_ROOT/infra/policies/terraform/tests/fixtures"
 
+if command -v checkov >/dev/null 2>&1; then
+  step "checkov (same config as CI)"
+  check bash -c "cd '$REPO_ROOT' && checkov --config-file .checkov.yaml >/dev/null"
+fi
+
 step "bash -n scripts/*.sh .devcontainer/*.sh"
 check bash -c 'for f in "$0"/scripts/*.sh "$0"/.devcontainer/*.sh; do bash -n "$f" || exit 1; done' "$REPO_ROOT"
 
