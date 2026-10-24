@@ -103,6 +103,8 @@ if [ -n "$token" ]; then
   kubectl -n platform create secret generic platform-github --from-literal=token="$token" \
     --dry-run=client -o yaml | kubectl apply -f - >/dev/null
   say "secret platform/platform-github set from .env"
+  # Env vars are read at container start; pick the token up if already running.
+  kubectl -n platform rollout restart deployment/platform-api >/dev/null 2>&1 || true
 else
   warn "PLATFORM_GITHUB_TOKEN not in .env; requests will fail until it is set (PLAN.md 8.4 step 5), then run make up again"
 fi

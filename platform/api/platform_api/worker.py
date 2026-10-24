@@ -395,11 +395,18 @@ def terraform_apply(cfg: WorkerConfig) -> RunApply:
     return run
 
 
+class NotConfigured(RuntimeError):
+    """The worker cannot work yet (no GitHub token); not a crash."""
+
+
 def build_worker(settings: Settings | None = None, cfg: WorkerConfig | None = None) -> Worker:
     settings = settings or Settings.from_env()
     cfg = cfg or WorkerConfig.from_env()
     if not settings.github_token:
-        raise SystemExit("PLATFORM_GITHUB_TOKEN is required for the worker")
+        raise NotConfigured(
+            "PLATFORM_GITHUB_TOKEN is not set: put it in .env and run `make up` "
+            "(PLAN.md 8.4 step 5)"
+        )
     github = GitHubClient(
         settings.github_repo,
         settings.github_token,
@@ -422,7 +429,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = argv if argv is not None else sys.argv[1:]
     cfg = WorkerConfig.from_env()
-    worker = build_worker(cfg=cfg)
+    try:
+        worker = build_worker(cfg=cfg)
+    except NotConfigured as e:
+        if "--once" in args:
+            print(f"worker not configured: {e}", file=sys.stderr)
+            return 2
+        # Stay up and quiet so the pod is healthy; the secret arrives with
+        # `make up`, which restarts the deployment.
+        while True:
+            log.warning("worker idle: %s", e)
+            time.sleep(300)
     if "--once" in args:
         changed = worker.run_once()
         print(f"changed: {', '.join(changed) if changed else 'nothing'}")
