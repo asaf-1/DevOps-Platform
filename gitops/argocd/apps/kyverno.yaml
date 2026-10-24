@@ -23,8 +23,8 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
-  # Kyverno rewrites its own webhook configurations at runtime.
   ignoreDifferences:
+    # Kyverno rewrites its own webhook configurations at runtime.
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
       jsonPointers:
@@ -33,6 +33,12 @@ spec:
       kind: ValidatingWebhookConfiguration
       jsonPointers:
         - /webhooks
+    # The chart renders "labels: {}" on its CRDs; the API server drops the
+    # empty map, which would otherwise read as OutOfSync forever.
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /metadata/labels
   syncPolicy:
     automated:
       prune: true
@@ -40,6 +46,7 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
