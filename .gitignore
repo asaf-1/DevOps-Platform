@@ -42,6 +42,7 @@ venv/
 htmlcov/
 dist/
 build/
+*.db
 
 # Node
 node_modules/
