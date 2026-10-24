@@ -1,7 +1,10 @@
 """Demo app: one page that shows the bucket the platform created for it.
 
-Reads BUCKET_NAME and friends from the environment, which the Deployment
-fills from the ConfigMap the apply worker commits to. No dependencies.
+Reads BUCKET_NAME and friends from the ConfigMap the apply worker commits
+to. The ConfigMap is mounted as files under CONFIG_DIR, which Kubernetes
+refreshes while the pod runs (environment variables would not), so the
+page changes within a minute of the commit. Falls back to the environment.
+No dependencies.
 """
 
 from __future__ import annotations
@@ -10,15 +13,28 @@ import html
 import os
 import socket
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 PORT = int(os.environ.get("PORT", "8080"))
+CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
+
+
+def setting(key: str, default: str = "") -> str:
+    """A ConfigMap key: the mounted file first (live), then the environment."""
+    path = CONFIG_DIR / key
+    try:
+        if path.is_file():
+            return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        pass
+    return os.environ.get(key, default)
 
 
 def page() -> str:
-    bucket = os.environ.get("BUCKET_NAME", "")
-    arn = os.environ.get("BUCKET_ARN", "")
-    request_id = os.environ.get("BUCKET_REQUEST_ID", "")
-    greeting = os.environ.get("GREETING", "hello")
+    bucket = setting("BUCKET_NAME")
+    arn = setting("BUCKET_ARN")
+    request_id = setting("BUCKET_REQUEST_ID")
+    greeting = setting("GREETING", "hello")
     status = (
         f"<p class='ok'>Bucket <code>{html.escape(bucket)}</code> is mine.</p>"
         f"<p>ARN <code>{html.escape(arn)}</code>, request <code>{html.escape(request_id)}</code>.</p>"

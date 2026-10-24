@@ -28,9 +28,15 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+          # The ConfigMap is mounted as files (refreshed live by the kubelet)
+          # and also exposed as env for anything that only reads the env.
           envFrom:
             - configMapRef:
                 name: demo-app-config
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
           resources:
             requests:
               cpu: 10m
@@ -49,3 +55,7 @@ spec:
             allowPrivilegeEscalation: false
             capabilities:
               drop: [ALL]
+      volumes:
+        - name: config
+          configMap:
+            name: demo-app-config
