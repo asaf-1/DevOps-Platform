@@ -214,6 +214,28 @@ class Worker:
             return True
         return changed  # not approved yet
 
+    def retry(self, request_id: str, *, actor: str = "operator") -> ResourceRequest:
+        """Put a failed request back to approved so the next pass applies it again.
+
+        Only for requests that were approved once: the human decision stands,
+        the machinery is what is retried.
+        """
+        req = self.store.get_request(request_id)
+        if req is None:
+            raise KeyError(request_id)
+        if req.state != RequestState.FAILED:
+            raise ValueError(f"{request_id} is {req.state}, not failed")
+        if not any(e.event == "approved" for e in self.store.list_events(request_id)):
+            raise ValueError(f"{request_id} was never approved; open a new request instead")
+        return self.store.transition(
+            request_id,
+            RequestState.APPROVED,
+            actor=actor,
+            actor_type="human",
+            details={"reason": "manual retry after failure", "previous_error": req.error},
+            error=None,
+        )
+
     # approved -> applied
 
     def _apply(self, req: ResourceRequest) -> None:
@@ -231,8 +253,13 @@ class Worker:
                 error="no merge commit recorded",
             )
             return
+        reason = "terraform apply failed"
         try:
-            repo_dir = self.fetch_repo(merge_sha)
+            try:
+                repo_dir = self.fetch_repo(merge_sha)
+            except Exception as e:
+                reason = "repo download failed"
+                raise RuntimeError(f"{merge_sha}: {e}") from e
             result = self.run_apply(repo_dir, req.environment, req.id)
         except Exception as e:  # download or subprocess failure
             result = TerraformResult(ok=False, log=str(e))
@@ -241,8 +268,8 @@ class Worker:
                 req.id,
                 RequestState.FAILED,
                 actor=ACTOR,
-                details={"reason": "terraform apply failed", "log_tail": result.log[-2000:]},
-                error="terraform apply failed",
+                details={"reason": reason, "log_tail": result.log[-2000:]},
+                error=reason,
             )
             return
         self.store.transition(
@@ -325,6 +352,11 @@ def merge_outputs_into_configmap(text: str, req: ResourceRequest, outputs: dict[
 # production implementations
 
 
+def tarball_url(base_url: Any, sha: str) -> str:
+    """httpx normalises base_url with a trailing slash; do not double it."""
+    return f"{str(base_url).rstrip('/')}/tarball/{sha}"
+
+
 def github_fetch_repo(github: GitHubClient, workdir: Path) -> FetchRepo:
     """Download the repo tarball at a commit into workdir/<sha>; no git needed in the image."""
 
@@ -333,7 +365,7 @@ def github_fetch_repo(github: GitHubClient, workdir: Path) -> FetchRepo:
         if (target / "infra").is_dir():
             return target
         workdir.mkdir(parents=True, exist_ok=True)
-        url = f"{github._client.base_url}/tarball/{sha}"
+        url = tarball_url(github._client.base_url, sha)
         with httpx.Client(
             headers=dict(github._client.headers), follow_redirects=True, timeout=120
         ) as c:
@@ -440,6 +472,11 @@ def main(argv: list[str] | None = None) -> int:
         while True:
             log.warning("worker idle: %s", e)
             time.sleep(300)
+    if "--retry" in args:
+        request_id = args[args.index("--retry") + 1]
+        req = worker.retry(request_id, actor=os.environ.get("PLATFORM_USER", "operator"))
+        print(f"{req.id}: {req.state}; the next pass applies it")
+        return 0
     if "--once" in args:
         changed = worker.run_once()
         print(f"changed: {', '.join(changed) if changed else 'nothing'}")

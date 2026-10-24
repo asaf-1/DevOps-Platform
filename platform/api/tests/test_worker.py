@@ -205,3 +205,39 @@ def test_configmap_merge_is_stable() -> None:
     assert once == twice
     assert "r-1.table_name: orders" in once
     assert "BUCKET_NAME" not in once
+
+
+def test_tarball_url_has_no_double_slash() -> None:
+    from platform_api.worker import tarball_url
+
+    assert (
+        tarball_url("https://api.github.com/repos/o/r/", "abc")
+        == "https://api.github.com/repos/o/r/tarball/abc"
+    )
+    assert (
+        tarball_url("https://api.github.com/repos/o/r", "abc")
+        == "https://api.github.com/repos/o/r/tarball/abc"
+    )
+
+
+def test_retry_after_failed_apply(world) -> None:
+    store, gh, worker, _, applies, result = world
+    gh.runs[("iac-pr.yml", "head111")] = "success"
+    gh.pr.update({"state": "closed", "merged_at": "x", "merge_commit_sha": "merge222"})
+    gh.runs[("iac-approve.yml", "merge222")] = "success"
+    result["value"] = TerraformResult(ok=False, log="download 404")
+    worker.run_once()
+    assert store.get_request("r-abc123").state == RequestState.FAILED
+
+    # a retry puts it back to approved, keeping the original approval in the trail
+    req = worker.retry("r-abc123", actor="asaf")
+    assert req.state == RequestState.APPROVED and req.error is None
+    result["value"] = TerraformResult(ok=True, outputs={"bucket_name": "demo-uploads"})
+    worker.run_once()
+    assert store.get_request("r-abc123").state == RequestState.DEPLOYED
+    assert events(store, "r-abc123").count("approved") == 2
+    assert len(applies) == 2
+
+    # cannot retry something that is not failed, or never approved
+    with pytest.raises(ValueError):
+        worker.retry("r-abc123")
