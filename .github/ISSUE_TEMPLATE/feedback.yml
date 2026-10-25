@@ -1,0 +1,37 @@
+name: Feedback
+description: Something that was confusing, broken, or missing when you tried the platform.
+title: "[feedback] "
+labels: ["feedback"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Quickstart (make up, devcontainer)
+        - Self-service request (catalog, PR, approval, apply)
+        - Incident agent (alert, run, pull request)
+        - Evals and runbooks
+        - Observability (dashboards, traces, audit)
+        - Docs and ADRs
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or click, what you expected, what you saw. Paste output in a code block.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Your setup
+      description: OS, Docker Desktop version, RAM, whether you ran inside the devcontainer, model provider (Ollama model or Claude).
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I ran `make status` and looked at `docs/` before filing.

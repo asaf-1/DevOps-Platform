@@ -32,6 +32,9 @@ grafana:
   tokenKey: token
 
 platformApiUrl: http://platform-api.platform.svc.cluster.local   # smoke tests run by the platform
+# Pass rate of the last make evals on the deployed prompt (0 to 1); set by hand
+# after a run until CI evals run on Claude. Shown on the Agents dashboard.
+evalScore: "0.46"   # 6 of 13 on 2026-10-25, before the folder-hint fix
 
 metrics:
   enabled: true   # ServiceMonitor on /metrics
