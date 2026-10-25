@@ -76,6 +76,11 @@ real AWS and Claude as configuration switches.
   and agents land in the same append-only Postgres table (a trigger refuses
   updates and deletes) with target, outcome, approval reference, run id and
   trace id; a nightly CronJob exports them as JSONL to a LocalStack bucket.
+- Two Grafana dashboards as code (`gitops/clusters/local/dashboards/`):
+  "Platform DX" (requests by state, time from request to deployed p50 and
+  p95, approval wait, policy outcomes) and "Agents" (runs, success rate,
+  steps, tokens, tool calls by outcome, prompt version). Both services
+  compute their `/metrics` from the audit table on every scrape.
 
 **Platform engineering practice**
 

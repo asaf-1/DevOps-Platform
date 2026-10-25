@@ -30,6 +30,9 @@ grafana:
   secretName: agent-grafana    # service account token, created by scripts/up.sh
   tokenKey: token
 
+metrics:
+  enabled: true   # ServiceMonitor on /metrics
+
 otel:
   endpoint: http://otel-collector-opentelemetry-collector.observability.svc.cluster.local:4318
 

@@ -1,0 +1,19 @@
+{{- if .Values.metrics.enabled }}
+# Prometheus scrapes /metrics (numbers computed from the audit table on each
+# scrape). The kube-prometheus-stack selects every ServiceMonitor.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: platform-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "platform-api.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "platform-api.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}

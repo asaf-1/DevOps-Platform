@@ -21,12 +21,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from . import __version__
 from .audit import Store
 from .manifest import ManifestViolation
+from .metrics import registry_for, render
 from .runner import Runner, build_runner, new_run_id
 from .telemetry import setup_tracing
 
@@ -40,6 +41,7 @@ class Services:
         self.runner = runner
         self.lock = asyncio.Lock()  # one run at a time: the local model is CPU-bound
         self.tasks: set[asyncio.Task[Any]] = set()
+        self.metrics = registry_for(store, getattr(runner.spec, "prompt", "") or "")
 
     def start(self, run_id: str, alert: dict[str, Any]) -> None:
         task = asyncio.create_task(self._execute(run_id, alert))
@@ -152,6 +154,13 @@ class AlertmanagerPayload(BaseModel):
     alerts: list[Alert] = Field(default_factory=list)
     groupLabels: dict[str, str] = Field(default_factory=dict)
     commonLabels: dict[str, str] = Field(default_factory=dict)
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics(svc: Services = Depends(services)) -> Response:
+    """Prometheus metrics computed from the run and audit tables."""
+    body, content_type = render(svc.metrics)
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/healthz")

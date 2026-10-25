@@ -12,12 +12,13 @@ import secrets
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 
 from . import __version__
 from .catalog import Catalog, CatalogError
 from .github import GitHub, GitHubClient, GitHubError
+from .metrics import registry_for, render
 from .models import AuditEvent, CatalogType, RequestCreate, RequestState, ResourceRequest
 from .render import Renderer, request_file_path
 from .settings import Settings
@@ -42,6 +43,7 @@ class Services:
         self.renderer = renderer
         self.store = store
         self.github = github
+        self.metrics = registry_for(store)
 
 
 def build_services(settings: Settings | None = None, github: GitHub | None = None) -> Services:
@@ -96,6 +98,13 @@ def _entry(ctype: CatalogType) -> CatalogEntry:
         environments=ctype.environments,
         inputs=ctype.input_schema.get("properties", {}),
     )
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics(svc: Services = Depends(services)) -> Response:
+    """Prometheus metrics computed from the request and audit tables."""
+    body, content_type = render(svc.metrics)
+    return Response(content=body, media_type=content_type)
 
 
 @app.get("/healthz")

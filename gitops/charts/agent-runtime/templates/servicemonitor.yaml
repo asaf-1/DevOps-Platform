@@ -1,0 +1,20 @@
+{{- if .Values.metrics.enabled }}
+# Prometheus scrapes /metrics (runs, steps, tokens, tool calls by outcome,
+# computed from the run and audit tables on each scrape).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: agent-runtime
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: agent-runtime
+    app.kubernetes.io/part-of: platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-runtime
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+{{- end }}
