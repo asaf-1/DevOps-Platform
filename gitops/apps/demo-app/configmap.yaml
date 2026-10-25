@@ -11,3 +11,4 @@ data:
   r-60c80a.bucket_arn: arn:aws:s3:::demo-uploads
   r-60c80a.bucket_id: demo-uploads
   r-60c80a.bucket_name: demo-uploads
+  r-8f0d8f.namespace: bank
