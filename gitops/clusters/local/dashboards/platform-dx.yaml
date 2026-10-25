@@ -52,7 +52,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "sum(platform_requests)"
+              "expr": "sum(platform_requests)",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -93,7 +95,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max(platform_requests_created_7d)"
+              "expr": "max(platform_requests_created_7d)",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -134,7 +138,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max(platform_request_time_to_deployed_seconds{quantile=\"0.5\"})"
+              "expr": "max(platform_request_time_to_deployed_seconds{quantile=\"0.5\"})",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -177,7 +183,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max(platform_request_time_to_deployed_seconds{quantile=\"0.95\"})"
+              "expr": "max(platform_request_time_to_deployed_seconds{quantile=\"0.95\"})",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -220,7 +228,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max(platform_approval_wait_seconds{quantile=\"0.5\"})"
+              "expr": "max(platform_approval_wait_seconds{quantile=\"0.5\"})",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -263,7 +273,9 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max(platform_requests{state=\"failed\"}) / clamp_min(sum(max by (state) (platform_requests)), 1)"
+              "expr": "max(platform_requests{state=\"failed\"}) / clamp_min(sum(max by (state) (platform_requests)), 1)",
+              "instant": true,
+              "range": false
             }
           ],
           "fieldConfig": {
@@ -307,6 +319,8 @@ data:
                 "uid": "prometheus"
               },
               "expr": "max by (state) (platform_requests)",
+              "instant": true,
+              "range": false,
               "legendFormat": "{{state}}"
             }
           ],
@@ -347,7 +361,7 @@ data:
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "expr": "max by (outcome) (sum by (outcome, pod) (platform_audit_events))",
+              "expr": "max by (outcome) (sum by (outcome, pod) (platform_audit_events{outcome!=\"\"}))",
               "legendFormat": "{{outcome}}"
             }
           ],

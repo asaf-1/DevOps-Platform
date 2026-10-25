@@ -258,7 +258,9 @@ any other. The existing types (`s3-bucket`, `dynamodb-table`,
    The runtime refuses to start a propose-only agent that is granted a
    cluster `write` or any `delete`.
 3. Knowledge: runbooks under `docs/runbooks/` with tags in the front
-   matter; the loader attaches the ones whose tags match the alert.
+   matter; the loader attaches the one whose tags match the alert name
+   (seven today: crash loop, image pull, OOM, unavailable, TLS, HPA,
+   latency), and a test pins which runbook each recorded scenario gets.
 4. A recorded scenario under `agents/evals/fixtures/`: the alert, the
    files, the canned tool outputs and the `expect` block. `agents/dryrun.py
    <fixture>` shows every model turn in minutes; `make evals` scores it.

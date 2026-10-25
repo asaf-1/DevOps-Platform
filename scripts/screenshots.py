@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Screenshots for the README: the two Grafana dashboards, through a real login.
 
 Runs inside the devcontainer (Playwright + Chromium in agents/.venv):

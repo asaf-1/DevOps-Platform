@@ -1,6 +1,6 @@
 ---
 title: Container OOMKilled
-tags: [kubernetes, oom, crashloop, demo-app]
+tags: [kubernetes, oom, demo-app]
 ---
 
 # Container OOMKilled (and the CrashLoopBackOff that follows)

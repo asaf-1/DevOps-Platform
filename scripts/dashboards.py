@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Generate the two Grafana dashboards as ConfigMaps (dashboards as code).
 
     python scripts/dashboards.py          # rewrites gitops/clusters/local/dashboards/*.yaml
@@ -17,9 +18,16 @@ PROM = {"type": "prometheus", "uid": "prometheus"}
 
 
 def panel(pid, ptype, title, exprs, x, y, w, h, unit=None, legend=None, extra=None):
+    # A stat or bar gauge shows the value now, so it queries one instant: a
+    # series that stopped days ago (an old pod's prompt version, a retired
+    # tool name) must not reappear through lastNotNull over the time range.
+    instant = ptype in ("stat", "bargauge")
     targets = []
     for i, e in enumerate(exprs):
         t = {"refId": chr(65 + i), "datasource": PROM, "expr": e}
+        if instant:
+            t["instant"] = True
+            t["range"] = False
         if legend:
             t["legendFormat"] = legend[i] if isinstance(legend, list) else legend
         targets.append(t)
@@ -101,7 +109,7 @@ dx = dashboard(
         ),
         panel(
             8, "timeseries", "Audit events by outcome",
-            ['max by (outcome) (sum by (outcome, pod) (platform_audit_events))'], 12, 4, 12, 8, legend="{{outcome}}",
+            ['max by (outcome) (sum by (outcome, pod) (platform_audit_events{outcome!=""}))'], 12, 4, 12, 8, legend="{{outcome}}",
         ),
         panel(
             9, "timeseries", "Requests per state over time", ["max by (state) (platform_requests)"], 0, 12, 24, 8,
@@ -134,7 +142,7 @@ agents = dashboard(
         ),
         panel(7, "bargauge", "Runs by status", ["max by (status) (agent_runs)"], 0, 4, 8, 8, legend="{{status}}"),
         panel(
-            8, "bargauge", "Tool calls by tool and outcome", ["max by (tool, outcome) (agent_tool_calls)"], 8, 4, 16, 8,
+            8, "bargauge", "Tool calls by tool and outcome", ['max by (tool, outcome) (agent_tool_calls{tool!=""})'], 8, 4, 16, 8,
             legend="{{tool}} {{outcome}}",
         ),
         panel(

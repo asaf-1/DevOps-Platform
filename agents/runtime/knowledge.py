@@ -23,7 +23,12 @@ KEYWORDS = {
     "oom": "oom",
     "crashloop": "crashloop",
     "restart": "crashloop",
-    "unavailable": "crashloop",
+    "unavailable": "unavailable",
+    "notready": "unavailable",
+    "tls": "tls",
+    "cert": "tls",
+    "hpa": "hpa",
+    "latency": "latency",
 }
 
 

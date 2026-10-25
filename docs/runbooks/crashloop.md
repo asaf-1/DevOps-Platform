@@ -9,6 +9,12 @@ tags: [kubernetes, crashloop, demo-app]
 with growing delays. The reason is in the container's last exit, not in
 the restart.
 
+**Is it still broken?** `kubectl get pods -n <ns>`: a pod that is
+`Running`, `Ready` and has not restarted in the last few minutes is
+healthy now; the alert came from a finished rollout or a crash that
+already stopped. Report that no change is needed and open no pull
+request. Only a pod that is restarting now needs a fix.
+
 **Find the reason first.**
 - `kubectl describe pod <pod> -n <ns>`: `Last State`, `Reason`, `Exit Code`.
   - `OOMKilled` / exit 137: see the OOMKilled runbook.

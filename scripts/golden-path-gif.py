@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Assemble docs/images/golden-path.gif from real frames of the self-service path.
 
 Frame 1 is the terminal (rendered text, the real output of the first request
