@@ -20,9 +20,10 @@ resource "github_repository" "platform" {
   has_wiki        = false
   has_discussions = false
 
-  # The platform merges request pull requests itself when CI is green
-  # (auto-merge), and request/* and agent/* branches must not pile up.
-  allow_auto_merge       = true
+  # The platform's worker merges request pull requests itself when CI is
+  # green; GitHub's own auto-merge button is not used. Merged request/* and
+  # agent/* branches are deleted so they do not pile up.
+  allow_auto_merge       = false
   delete_branch_on_merge = true
   allow_update_branch    = true
 
@@ -43,10 +44,18 @@ resource "github_repository_environment" "production" {
     users = [data.github_user.reviewer.id]
   }
 
+  # Only main may deploy to production (the policy below); set by hand in
+  # Phase 1 and kept.
   deployment_branch_policy {
     protected_branches     = false
-    custom_branch_policies = false
+    custom_branch_policies = true
   }
+}
+
+resource "github_repository_environment_deployment_policy" "production_main" {
+  repository     = github_repository.platform.name
+  environment    = github_repository_environment.production.environment
+  branch_pattern = "main"
 }
 
 # main cannot be deleted or force-pushed. No required reviews: the platform

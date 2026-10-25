@@ -28,7 +28,8 @@ say "terraform init (backend pg, schema terraform_github)"
 terraform init -input=false -reconfigure >/dev/null
 if [ "${APPLY:-0}" = "1" ]; then
   say "terraform apply: the repository's settings become what the code says"
-  terraform apply -input=false
+  # APPLY=1 is the approval: it is set after reading the plan this script printed.
+  terraform apply -input=false -auto-approve
 else
   say "terraform plan (read it; APPLY=1 make github-settings applies)"
   terraform plan -input=false

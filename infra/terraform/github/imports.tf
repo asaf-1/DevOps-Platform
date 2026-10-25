@@ -15,3 +15,8 @@ import {
   to = github_issue_label.platform_request
   id = "DevOps-Platform:platform-request"
 }
+
+import {
+  to = github_repository_environment_deployment_policy.production_main
+  id = "DevOps-Platform:production:64229378"
+}
