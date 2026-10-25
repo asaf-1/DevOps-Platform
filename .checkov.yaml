@@ -21,3 +21,13 @@ skip-check:
   - CKV_AWS_119
   # DynamoDB: small tables are on-demand; provisioned sizes are fixed by design.
   - CKV2_AWS_16
+  # GitHub (infra/terraform/github): the repository is a public portfolio by
+  # design, so "private" is not a goal.
+  - CKV_GIT_1
+  # GitHub: no required reviews on main; the platform API, the build bot and
+  # the break/fix scripts push to main directly, and request and agent changes
+  # arrive as pull requests by construction (ADR 0012).
+  - CKV_GIT_5
+  # GitHub: signed commits would block the platform API and the build bot,
+  # which commit through the API with a token, not a signing key.
+  - CKV_GIT_6

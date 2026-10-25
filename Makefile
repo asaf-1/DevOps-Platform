@@ -40,6 +40,10 @@ evals: ## Run the agent eval suite with Promptfoo over recorded scenarios (Phase
 	@echo "==> make evals: run promptfoo over agents/evals"
 	@bash scripts/evals.sh
 
+github-settings: ## Plan (APPLY=1: apply) the repository's own GitHub settings as Terraform (Phase 4)
+	@echo "==> make github-settings: terraform plan/apply of infra/terraform/github against GitHub"
+	@bash scripts/github-settings.sh
+
 lint: ## Everything that must be green before a push
 	@echo "==> make lint: ruff + pytest (api, cli), terraform fmt -check + validate, conftest verify, bash -n"
 	@bash scripts/lint.sh

@@ -23,7 +23,7 @@ real AWS and Claude as configuration switches.
 | 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | done: request -> PR with plan, policy and security checks -> auto-merge -> one-click approval -> in-cluster apply -> audit timeline -> demo app shows its bucket |
 | 2. Agent platform | model-agnostic agent runtime, MCP tool registry with capability labels, incident-triage agent, fix PR flow, Alertmanager wiring | done: `make break` -> alert -> agent reads the pod and the GitOps file -> one-line fix on an `agent/*` branch -> PR with a report -> human merge -> ArgoCD heals the app -> alert resolves -> run closed (real run 2026-10-25: 10 minutes from alert to report on a local 4B model, 5 tool calls, 0 refused) |
 | 3. Trust layer | Promptfoo eval suite in CI, safety cases, Kyverno policies against the agent service account, OpenTelemetry traces per run and tool call, Grafana dashboards | done: twelve recorded scenarios behind the same guard, `make evals` and the `agents-eval` gate (Claude job waits for an API key), one trace per run linked from the run record, append-only audit table with nightly export, Platform DX and Agents dashboards, four Kyverno policies verified live, SLO alerts |
-| 4. Product and polish | one-page UI, DX metrics, optional real-AWS run with OIDC, optional Datadog export | planned |
+| 4. Product and polish | one-page UI, DX metrics, optional real-AWS run with OIDC, optional Datadog export | in progress: the repository's own GitHub settings (production environment and reviewer, branch rules, request label, merge behaviour) are Terraform under `infra/terraform/github/`, applied with `make github-settings` (ADR 0012) |
 
 ## Features
 
@@ -182,6 +182,7 @@ All targets:
 | `make break` | Commit a nonexistent image tag for the demo app (a one-line typo) so a real alert fires | 2 |
 | `make fix` | Restore the known-good tag in git (when you do not merge the agent's PR) | 2 |
 | `make evals` | Run the Promptfoo eval suite over the agents | 3 |
+| `make github-settings` | Plan (`APPLY=1`: apply) the repository's own GitHub settings as Terraform | 4 |
 | `make lint` | Ruff and pytest for the API and CLI, `terraform fmt -check` and `validate`, `conftest verify`, shell syntax | 1 |
 
 Local configuration goes in `.env`, copied from [.env.example](.env.example).
