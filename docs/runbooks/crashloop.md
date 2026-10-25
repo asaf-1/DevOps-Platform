@@ -18,9 +18,24 @@ the restart.
   Look at the last 20 lines.
 - `kubectl get events -n <ns> --sort-by=.lastTimestamp`.
 
+**Read the logs before choosing a fix.** The last log lines name the
+cause; the fix must match them, not the alert name:
+- `listen EADDRNOTAVAIL`, `getaddrinfo ENOTFOUND <value>`, `EADDRINUSE`,
+  "Server failed to start on <host>:<port>": the app cannot bind its
+  address. The cause is the HOST or PORT setting (a ConfigMap, or the
+  `configMapGenerator` literals in the app's `kustomization.yaml`). Set
+  HOST back to `0.0.0.0` or PORT to the container port. Memory has
+  nothing to do with it.
+- "database failed to start", `ECONNREFUSED`, "password authentication
+  failed": the DATABASE_URL or the database itself; check the Secret and
+  the database pod.
+- A memory limit is only the fix when `Last State` says `OOMKilled`
+  (exit code 137). An `Error` with exit code 1 is never a memory problem.
+
 **Typical fixes, all in git.**
 - Configuration the app rejects (missing env, bad value): fix the
-  ConfigMap or Deployment env in `gitops/apps/<app>/`.
+  ConfigMap, the `configMapGenerator` literals or the Deployment env in
+  `gitops/apps/<app>/`.
 - A probe that fails too early: raise `initialDelaySeconds` on the probe.
 - A bad image: see the ImagePullBackOff runbook.
 

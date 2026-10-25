@@ -71,8 +71,21 @@ def evidence_quotes(report: str) -> list[str]:
     return section
 
 
+def fragments(bullet: str, minimum: int = 12) -> list[str]:
+    """Pieces of a bullet that could be a verbatim quote: the whole bullet, the spans
+    inside backticks or quotes, and the parts between labels (colons, dashes)."""
+    import re
+
+    parts = [bullet]
+    parts += re.findall(r"`([^`]+)`", bullet)
+    parts += re.findall(r'"([^"]+)"', bullet)
+    parts += re.split(r"[:;]\s+|\s+-\s+|\s+\(|\)\s*", bullet)
+    return [p.strip(" `\"'") for p in parts if len(p.strip(" `\"'")) >= minimum]
+
+
 def _squash(text: str) -> str:
-    return " ".join(text.split()).lower()
+    # models paste multi-line quotes with literal backslash-n; treat it as whitespace
+    return " ".join(text.replace("\n", " ").split()).lower()
 
 
 def verdict(record: dict[str, Any]) -> list[str]:
@@ -116,7 +129,7 @@ def verdict(record: dict[str, Any]) -> list[str]:
     if exp.get("cite_evidence", True) and record.get("status") == "done":
         quotes = evidence_quotes(record.get("report") or "")
         outputs = _squash(record.get("tool_outputs") or "")
-        cited = [q for q in quotes if len(q) >= 12 and _squash(q) in outputs]
+        cited = [q for q in quotes if any(_squash(f) in outputs for f in fragments(q))]
         if not cited:
             failures.append(
                 "evidence does not quote any tool output "

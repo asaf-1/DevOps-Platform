@@ -1,0 +1,132 @@
+name: bank_bad_host
+description: Playground Bank (a tenant app) crash-loops because its HOST setting in git is not a valid address; the log names the address. Fix the one setting line in the overlay, not the memory limit.
+alert:
+  status: firing
+  fingerprint: fx-bank-host-01
+  labels:
+    alertname: BankAppCrashLooping
+    severity: critical
+    namespace: bank
+    pod: agents-playground-5c6cd54877-4d59n
+    container: app
+    app: playground-bank
+    gitops_app: playground-bank
+  annotations:
+    summary: agents-playground-5c6cd54877-4d59n is restarting repeatedly
+    description: "Container app in bank/agents-playground-5c6cd54877-4d59n restarted more than twice in 5 minutes; read its logs. Settings live in gitops/apps/playground-bank/kustomization.yaml."
+files:
+  gitops/apps/playground-bank/: |
+    [{"type": "file", "name": "kustomization.yaml", "path": "gitops/apps/playground-bank/kustomization.yaml", "size": 2535},
+     {"type": "file", "name": "patch-deployment.yaml", "path": "gitops/apps/playground-bank/patch-deployment.yaml", "size": 912},
+     {"type": "file", "name": "patch-networkpolicy.yaml", "path": "gitops/apps/playground-bank/patch-networkpolicy.yaml", "size": 611},
+     {"type": "file", "name": "postgres.yaml", "path": "gitops/apps/playground-bank/postgres.yaml", "size": 680}]
+  gitops/apps/playground-bank/kustomization.yaml: |
+    apiVersion: kustomize.config.k8s.io/v1beta1
+    kind: Kustomization
+    namespace: bank
+    resources:
+      - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/20-deployment.yaml
+      - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/30-service.yaml
+      - postgres.yaml
+    # The app's settings. The generated name carries a hash, so a change restarts the pod.
+    configMapGenerator:
+      - name: agents-playground-config
+        literals:
+          - HOST=0.0.0.0.1
+          - PORT=4173
+    images:
+      - name: agents-playground
+        newName: ghcr.io/asaf-1/devops-platform/playground-bank
+        newTag: sha-e435db7
+    patches:
+      - path: patch-deployment.yaml
+  gitops/apps/playground-bank/patch-deployment.yaml: |
+    # What the platform decides about the bank's Deployment: the image comes from a
+    # registry, the database is the CNPG cluster next to the app, and the memory
+    # limit is the one the app's own comment gives for an external database.
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: agents-playground
+      namespace: agents-playground
+    spec:
+      template:
+        spec:
+          containers:
+            - name: app
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: bank-app
+                      key: uri
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 192Mi
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+tools:
+  kubernetes.kubectl_describe:
+    - when: {resourceType: pod}
+      returns: |
+        Name:             agents-playground-5c6cd54877-4d59n
+        Namespace:        bank
+        Node:             platform-worker/172.18.0.2
+        Labels:           app=agents-playground
+                          team=bank
+        Status:           Running
+        Containers:
+          app:
+            Image:          ghcr.io/asaf-1/devops-platform/playground-bank:sha-e435db7
+            Port:           4173/TCP
+            State:          Waiting
+              Reason:       CrashLoopBackOff
+            Last State:     Terminated
+              Reason:       Error
+              Exit Code:    1
+            Ready:          False
+            Restart Count:  4
+            Limits:
+              cpu:     1
+              memory:  512Mi
+            Requests:
+              cpu:     100m
+              memory:  192Mi
+            Environment Variables from:
+              agents-playground-config-dhfg9926b4  ConfigMap  Optional: false
+            Environment:
+              DATABASE_URL:  <set to the key 'uri' in secret 'bank-app'>  Optional: false
+        Events:
+          Type     Reason     Age                 From     Message
+          ----     ------     ----                ----     -------
+          Normal   Pulled     3m (x5 over 5m)     kubelet  Container image "ghcr.io/asaf-1/devops-platform/playground-bank:sha-e435db7" already present on machine
+          Normal   Started    3m (x5 over 5m)     kubelet  Started container app
+          Warning  Unhealthy  3m (x8 over 5m)     kubelet  Startup probe failed: Get "http://10.244.1.75:4173/api/health": dial tcp 10.244.1.75:4173: connect: connection refused
+          Warning  BackOff    1m (x12 over 4m)    kubelet  Back-off restarting failed container app
+  kubernetes.kubectl_get:
+    - when: {resourceType: pod}
+      returns: |
+        NAME                                 READY   STATUS             RESTARTS      AGE
+        agents-playground-5c6cd54877-4d59n   0/1     CrashLoopBackOff   4 (1m ago)    5m
+        bank-1                               1/1     Running            0             15m
+  kubernetes.kubectl_logs:
+    - returns: |
+        Playground Bank database: Postgres (DATABASE_URL)
+        Server failed to start on 0.0.0.0.1:4173: Error: getaddrinfo ENOTFOUND 0.0.0.0.1
+            at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:123:26) {
+          errno: -3008,
+          code: 'ENOTFOUND',
+          syscall: 'getaddrinfo',
+          hostname: '0.0.0.0.1'
+        }
+expect:
+  keywords: ["0.0.0.0.1"]
+  keywords_any: ["host", "enotfound", "address"]
+  changed_file: gitops/apps/playground-bank/kustomization.yaml
+  replace_contains: "0.0.0.0"
+  pr: true
+  forbidden_tools: []
+  max_steps: 9

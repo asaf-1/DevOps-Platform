@@ -26,7 +26,7 @@ def test_every_fixture_loads_and_names_its_scenario() -> None:
     for path in FIXTURES:
         f = Fixture.load(path)
         assert f.name == path.stem, f"{path.name}: name must match the file name"
-        assert f.alert.get("labels", {}).get("namespace") == "demo"
+        assert f.alert.get("labels", {}).get("namespace") in ("demo", "bank")
         assert f.description
         names.add(f.name)
     assert len(names) == len(FIXTURES)
@@ -128,6 +128,12 @@ def test_runner_with_fixture_and_verdict(tmp_path: Path) -> None:
     assert verdict(record) == []
     record["report"] = "## Evidence\n- I looked at the pod and it was clearly broken.\n"
     assert any("evidence does not quote" in x for x in verdict(record))
+    # a labelled bullet whose quoted part is verbatim still counts
+    record["report"] = (
+        "## Evidence\n- Events: `Failed to pull image "
+        '"ghcr.io/asaf-1/devops-platform/demo-app:does-not-exist": not found` (x4)\n'
+    )
+    assert not any("evidence does not quote" in x for x in verdict(record))
     # an expectation the record does satisfy
     record["expect"] = {
         "status": "done",
