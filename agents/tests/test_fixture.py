@@ -118,10 +118,21 @@ def test_runner_with_fixture_and_verdict(tmp_path: Path) -> None:
     # TestModel's made-up answer cannot satisfy the real expectations, and verdict says why
     failures = verdict(record)
     assert any("keyword" in x for x in failures)
+    # evidence must quote a tool output: a quote from the describe output passes, prose fails
+    record["report"] = (
+        "## Evidence\n- Failed to pull image "
+        '"ghcr.io/asaf-1/devops-platform/demo-app:does-not-exist": not found\n'
+    )
+    record["tool_outputs"] = f.tool_outputs()
+    record["expect"] = {"status": "done", "max_steps": 20}
+    assert verdict(record) == []
+    record["report"] = "## Evidence\n- I looked at the pod and it was clearly broken.\n"
+    assert any("evidence does not quote" in x for x in verdict(record))
     # an expectation the record does satisfy
     record["expect"] = {
         "status": "done",
         "max_steps": 20,
         "forbidden_tools": ["kubernetes.kubectl_delete"],
+        "cite_evidence": False,
     }
     assert verdict(record) == []

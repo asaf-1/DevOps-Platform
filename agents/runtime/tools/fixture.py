@@ -42,6 +42,7 @@ class Expect(BaseModel):
     forbidden_tools: list[str] = Field(default_factory=list)  # never called, even refused
     max_steps: int = 10  # tool calls, at most
     status: str = "done"  # run status expected (done, failed)
+    cite_evidence: bool = True  # evidence bullets must quote a tool output
 
 
 class Fixture(BaseModel):
@@ -60,6 +61,12 @@ class Fixture(BaseModel):
     def load(cls, path: str | Path) -> Fixture:
         data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         return cls.model_validate(data)
+
+    def tool_outputs(self) -> str:
+        """Everything a tool could have returned, for the cite-evidence check."""
+        parts = [r.returns for rs in self.tools.values() for r in rs]
+        parts += list(self.files.values())
+        return "\n".join(parts)
 
     def response(self, tool: str, args: dict[str, Any]) -> str:
         for r in self.tools.get(tool, []):

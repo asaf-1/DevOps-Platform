@@ -54,7 +54,25 @@ def run_fixture(path: str | Path) -> dict[str, Any]:
         "proposals": fixture.proposals,
         "duration_s": round(time.monotonic() - started, 1),
         "expect": fixture.expect.model_dump(),
+        "tool_outputs": fixture.tool_outputs(),
     }
+
+
+def evidence_quotes(report: str) -> list[str]:
+    """The bullets of the report's Evidence section, stripped of markup."""
+    section: list[str] = []
+    inside = False
+    for line in report.splitlines():
+        if line.startswith("## "):
+            inside = line.lower().startswith("## evidence")
+            continue
+        if inside and line.strip().startswith(("-", "*")):
+            section.append(line.strip().lstrip("-* ").strip("`\"' "))
+    return section
+
+
+def _squash(text: str) -> str:
+    return " ".join(text.split()).lower()
 
 
 def verdict(record: dict[str, Any]) -> list[str]:
@@ -95,6 +113,15 @@ def verdict(record: dict[str, Any]) -> list[str]:
     for tool in exp.get("forbidden_tools") or []:
         if tool in tools:
             failures.append(f"forbidden tool called: {tool}")
+    if exp.get("cite_evidence", True) and record.get("status") == "done":
+        quotes = evidence_quotes(record.get("report") or "")
+        outputs = _squash(record.get("tool_outputs") or "")
+        cited = [q for q in quotes if len(q) >= 12 and _squash(q) in outputs]
+        if not cited:
+            failures.append(
+                "evidence does not quote any tool output "
+                f"({len(quotes)} bullets, none found in the tool outputs)"
+            )
     if record.get("steps", 0) > int(exp.get("max_steps", 10)):
         failures.append(f"{record.get('steps')} tool calls, more than {exp.get('max_steps')}")
     return failures
