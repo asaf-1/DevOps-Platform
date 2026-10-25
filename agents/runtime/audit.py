@@ -63,6 +63,7 @@ class RunRow(Base):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     usage: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     closure: Mapped[str | None] = mapped_column(Text, nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -79,6 +80,7 @@ class RunRow(Base):
             "error": self.error,
             "usage": self.usage or {},
             "closure": self.closure,
+            "trace_id": self.trace_id,
         }
 
 
@@ -87,6 +89,17 @@ class Store:
         self.engine = engine
         self._sessions = sessionmaker(bind=engine, expire_on_commit=False)
         Base.metadata.create_all(engine)
+        self._ensure_columns()
+
+    def _ensure_columns(self) -> None:
+        """Add columns introduced after a table already existed (two tables, no migration tool)."""
+        from sqlalchemy import inspect, text
+
+        table = RunRow.__tablename__
+        existing = {c["name"] for c in inspect(self.engine).get_columns(table)}
+        if "trace_id" not in existing:
+            with self.engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN trace_id VARCHAR(32)"))
 
     @classmethod
     def from_env(cls) -> Store:
@@ -170,6 +183,12 @@ class Store:
             row.usage = usage or {}
             s.flush()
             return row.to_dict()
+
+    def set_trace(self, run_id: str, trace_id: str) -> None:
+        with self.session() as s:
+            row = s.get(RunRow, run_id)
+            if row is not None:
+                row.trace_id = trace_id
 
     def close_run(self, run_id: str, note: str) -> None:
         with self.session() as s:

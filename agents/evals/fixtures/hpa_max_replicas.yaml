@@ -1,0 +1,117 @@
+name: hpa_max_replicas
+description: The autoscaler sits at its maximum while CPU stays far above target. Raise maxReplicas in git.
+alert:
+  status: firing
+  fingerprint: fx-hpa-max-01
+  labels:
+    alertname: DemoAppHPAAtMax
+    severity: warning
+    namespace: demo
+    deployment: demo-app
+    horizontalpodautoscaler: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app autoscaler is at its maximum replicas
+    description: "HPA demo/demo-app has run at maxReplicas for 15 minutes with CPU above target; see gitops/apps/demo-app/hpa.yaml."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 32Mi
+  gitops/apps/demo-app/hpa.yaml: |
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      scaleTargetRef:
+        apiVersion: apps/v1
+        kind: Deployment
+        name: demo-app
+      minReplicas: 1
+      maxReplicas: 3
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target:
+              type: Utilization
+              averageUtilization: 60
+tools:
+  kubernetes.kubectl_get:
+    - when: {resourceType: horizontalpodautoscaler}
+      returns: |
+        NAME       REFERENCE             TARGETS        MINPODS   MAXPODS   REPLICAS   AGE
+        demo-app   Deployment/demo-app   cpu: 94%/60%   1         3         3          3d
+    - when: {resourceType: hpa}
+      returns: |
+        NAME       REFERENCE             TARGETS        MINPODS   MAXPODS   REPLICAS   AGE
+        demo-app   Deployment/demo-app   cpu: 94%/60%   1         3         3          3d
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS    RESTARTS   AGE
+        demo-app-6d8f9c7b5-a1b2c    1/1     Running   0          40m
+        demo-app-6d8f9c7b5-d3e4f    1/1     Running   0          15m
+        demo-app-6d8f9c7b5-g5h6i    1/1     Running   0          15m
+  kubernetes.kubectl_describe:
+    - when: {resourceType: horizontalpodautoscaler}
+      returns: |
+        Name:                                                  demo-app
+        Namespace:                                             demo
+        Reference:                                             Deployment/demo-app
+        Metrics:                                               ( current / target )
+          resource cpu on pods  (as a percentage of request):  94% (94m) / 60%
+        Min replicas:                                          1
+        Max replicas:                                          3
+        Deployment pods:                                       3 current / 3 desired
+        Conditions:
+          Type            Status  Reason            Message
+          ----            ------  ------            -------
+          AbleToScale     True    ReadyForNewScale  recommended size matches current size
+          ScalingActive   True    ValidMetricFound  the HPA was able to successfully calculate a replica count from cpu resource utilization
+          ScalingLimited  True    TooManyReplicas   the desired replica count is more than the maximum replica count
+    - when: {resourceType: hpa}
+      returns: |
+        Name:            demo-app
+        Max replicas:    3
+        Deployment pods: 3 current / 3 desired
+        Conditions:
+          ScalingLimited  True    TooManyReplicas   the desired replica count is more than the maximum replica count
+    - when: {resourceType: pod}
+      returns: |
+        Name:     demo-app-6d8f9c7b5-a1b2c
+        Status:   Running
+        Containers:
+          demo-app:
+            State:    Running
+            Ready:    True
+            Requests:
+              cpu:    100m
+  kubernetes.kubectl_logs:
+    - returns: |
+        2026-10-25T09:40:00Z INFO 412 requests/s, p95 180ms
+expect:
+  keywords_any: ["maxreplicas", "max replicas", "maximum"]
+  changed_file: gitops/apps/demo-app/hpa.yaml
+  replace_contains: "maxReplicas"
+  pr: true
+  max_steps: 10

@@ -168,3 +168,16 @@ def test_failed_runs_back_off_unless_interrupted(tmp_path: Path) -> None:
         finished_failed("run-f3", 0, error="interrupted by a runtime restart")
         assert len(client.post("/webhooks/alertmanager", json=payload).json()["started"]) == 1
         _drain(client)
+
+
+def test_run_detail_links_its_trace(tmp_path: Path) -> None:
+    client, runner, store = make_client(tmp_path)
+    store.create_run("run-t1", "incident-triage", "fp-t", ALERT)
+    store.set_trace("run-t1", "ab" * 16)
+    with client:
+        run = client.get("/runs/run-t1").json()
+        assert run["trace_id"] == "ab" * 16
+        assert run["trace_url"].startswith("http://grafana.localhost:8080/explore?")
+        assert "ab" * 16 in run["trace_url"] and "tempo" in run["trace_url"]
+        listed = client.get("/runs").json()[0]
+        assert listed["trace_url"] == run["trace_url"]

@@ -213,9 +213,26 @@ def build_toolsets(
     manifest: AgentManifest,
     guard: ToolGuard,
     local_tools: FunctionToolset[Any] | None = None,
+    fixture: Any | None = None,
 ) -> list[AbstractToolset[Any]]:
-    """One wrapped toolset per MCP server the agent actually uses, plus local tools."""
+    """One wrapped toolset per MCP server the agent actually uses, plus local tools.
+
+    With a fixture (given, or `EVAL_MODE=1` with `EVAL_FIXTURE=<yaml>`) the
+    tools are served from the fixture instead of the MCP servers; the guard
+    in front of them is the same.
+    """
     used_servers = {t.split(".", 1)[0] for t in manifest.allowed_tools}
+    if fixture is None and os.environ.get("EVAL_MODE") == "1":
+        from .fixture import Fixture
+
+        fixture = Fixture.load(os.environ["EVAL_FIXTURE"])
+    if fixture is not None:
+        from .fixture import build_fixture_toolsets
+
+        return [
+            wrap(ts, server, guard)
+            for server, ts in build_fixture_toolsets(fixture, used_servers).items()
+        ]
     toolsets: list[AbstractToolset[Any]] = []
     for server, spec in (mcp_doc.get("servers") or {}).items():
         if server not in used_servers:

@@ -1,0 +1,100 @@
+name: node_memory_pressure
+description: The node evicted the pod for memory pressure. Nothing in git is wrong; the agent must say so and open no pull request.
+alert:
+  status: firing
+  fingerprint: fx-node-mem-01
+  labels:
+    alertname: DemoAppUnavailable
+    severity: warning
+    namespace: demo
+    deployment: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app has unavailable replicas
+    description: "Deployment demo/demo-app has had unavailable replicas for 2 minutes."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+tools:
+  kubernetes.kubectl_get:
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS    RESTARTS   AGE
+        demo-app-6d8f9c7b5-evk1t    0/1     Evicted   0          4m
+        demo-app-6d8f9c7b5-zz9q1    0/1     Pending   0          2m
+    - when: {resourceType: node}
+      returns: |
+        NAME                     STATUS   ROLES           AGE   VERSION
+        platform-control-plane   Ready    control-plane   2d    v1.36.1
+  kubernetes.kubectl_describe:
+    - when: {name: evk1t}
+      returns: |
+        Name:             demo-app-6d8f9c7b5-evk1t
+        Namespace:        demo
+        Status:           Failed
+        Reason:           Evicted
+        Message:          The node was low on resource: memory. Threshold quantity: 750Mi, available: 412Mi. Container demo-app was using 31Mi, request is 32Mi, has larger consumption of memory.
+        Events:
+          Type     Reason   Age   From     Message
+          ----     ------   ----  ----     -------
+          Warning  Evicted  4m    kubelet  The node was low on resource: memory.
+          Normal   Killing  4m    kubelet  Stopping container demo-app
+    - when: {name: zz9q1}
+      returns: |
+        Name:             demo-app-6d8f9c7b5-zz9q1
+        Namespace:        demo
+        Status:           Pending
+        Events:
+          Type     Reason            Age   From               Message
+          ----     ------            ----  ----               -------
+          Warning  FailedScheduling  2m    default-scheduler  0/1 nodes are available: 1 node(s) had untolerated taint {node.kubernetes.io/memory-pressure: }.
+    - when: {resourceType: node}
+      returns: |
+        Name:               platform-control-plane
+        Conditions:
+          Type             Status  Reason                       Message
+          ----             ------  ------                       -------
+          MemoryPressure   True    KubeletHasInsufficientMemory kubelet has insufficient memory available
+          DiskPressure     False   KubeletHasNoDiskPressure     kubelet has no disk pressure
+          Ready            True    KubeletReady                 kubelet is posting ready status
+        Allocated resources:
+          Resource  Requests      Limits
+          memory    21Gi (92%)    26Gi (113%)
+    - when: {resourceType: deployment}
+      returns: |
+        Name:       demo-app
+        Namespace:  demo
+        Replicas:   1 desired | 1 updated | 1 total | 0 available | 1 unavailable
+        Conditions:
+          Type           Status  Reason
+          Available      False   MinimumReplicasUnavailable
+  kubernetes.kubectl_logs:
+    - returns: "Error from server (BadRequest): container demo-app is not available"
+expect:
+  keywords_any: ["memory pressure", "evicted", "node"]
+  no_change: true
+  pr: false
+  max_steps: 8

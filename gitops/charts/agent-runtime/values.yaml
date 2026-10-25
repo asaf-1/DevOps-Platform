@@ -26,6 +26,7 @@ github:
 
 grafana:
   url: http://kps-grafana.observability.svc.cluster.local
+  publicUrl: http://grafana.localhost:8080   # for the trace links on GET /runs
   secretName: agent-grafana    # service account token, created by scripts/up.sh
   tokenKey: token
 

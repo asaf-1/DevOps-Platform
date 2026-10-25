@@ -47,8 +47,14 @@ def test_run_finishes_with_report_and_usage(tmp_path: Path) -> None:
         model_cfg=ModelConfig(provider="ollama", name="test"),
     )
     store.create_run("run-t", spec.manifest.name, "fp-runner", ALERT)
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    if not isinstance(trace.get_tracer_provider(), TracerProvider):
+        trace.set_tracer_provider(TracerProvider())
     run = asyncio.run(runner.run("run-t", ALERT))
     assert run["status"] == "done", run.get("error")
+    assert run["trace_id"] and len(run["trace_id"]) == 32  # one trace per run
     assert "## Symptoms" in run["report"] and "## Proposed change" in run["report"]
     assert run["usage"]["requests"] >= 1 and run["usage"]["tool_calls"] >= 1
     # TestModel's made-up path is refused by replace_line, never sent to GitHub

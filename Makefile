@@ -36,7 +36,7 @@ fix: ## Revert the break commit (Phase 2)
 	@echo "==> make fix: revert the break commit and push"
 	@bash scripts/fix.sh
 
-evals: ## Run the agent eval suite with Promptfoo (Phase 2)
+evals: ## Run the agent eval suite with Promptfoo over recorded scenarios (Phase 3)
 	@echo "==> make evals: run promptfoo over agents/evals"
 	@bash scripts/evals.sh
 

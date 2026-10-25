@@ -13,11 +13,13 @@ Startup refuses to proceed if the manifest violates propose_only.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -82,7 +84,52 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Agent runtime", version=__version__, lifespan=lifespan)
+def _skip_healthz(scope: dict[str, Any]) -> bool:
+    return str(scope.get("path", "")) == "/healthz"
+
+
+def _make_app() -> FastAPI:
+    # FastAPI 0.120+ traces requests itself; keep the webhook spans, drop the
+    # health checks (one every ten seconds) and the per-request sub-spans.
+    try:
+        return FastAPI(
+            title="Agent runtime",
+            version=__version__,
+            lifespan=lifespan,
+            telemetry={"exclude": _skip_healthz, "operation_spans": False},
+        )
+    except TypeError:  # older FastAPI without built-in telemetry
+        return FastAPI(title="Agent runtime", version=__version__, lifespan=lifespan)
+
+
+app = _make_app()
+
+
+def trace_url(trace_id: str | None) -> str | None:
+    """Grafana Explore link that opens the run's trace in Tempo."""
+    if not trace_id:
+        return None
+    base = os.environ.get("GRAFANA_PUBLIC_URL", "http://grafana.localhost:8080").rstrip("/")
+    panes = {
+        "run": {
+            "datasource": "tempo",
+            "queries": [
+                {
+                    "refId": "A",
+                    "datasource": {"type": "tempo", "uid": "tempo"},
+                    "queryType": "traceql",
+                    "query": trace_id,
+                }
+            ],
+            "range": {"from": "now-7d", "to": "now"},
+        }
+    }
+    return f"{base}/explore?schemaVersion=1&orgId=1&panes={quote(json.dumps(panes))}"
+
+
+def _with_trace(run: dict[str, Any]) -> dict[str, Any]:
+    run["trace_url"] = trace_url(run.get("trace_id"))
+    return run
 
 
 def services(request: Request) -> Services:
@@ -235,6 +282,7 @@ def list_runs(limit: int = 50, svc: Services = Depends(services)) -> list[dict[s
     for r in runs:  # keep the list light
         r.pop("steps", None)
         r["report"] = (r.get("report") or "")[:200]
+        _with_trace(r)
     return runs
 
 
@@ -243,4 +291,4 @@ def get_run(run_id: str, svc: Services = Depends(services)) -> dict[str, Any]:
     run = svc.store.get_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail=f"no run {run_id}")
-    return run
+    return _with_trace(run)

@@ -24,3 +24,7 @@ turn:
 6. final_result: the report, short: symptoms, up to three quotes from
    tool outputs, root cause, the one-line change you made, confidence,
    what you could not verify, the pull request URL.
+
+If the cause is not in git (a node problem, a transient alert that is
+over, something you have no tool to verify), skip steps 3 to 5: change
+nothing, open no pull request, and say so in the report.

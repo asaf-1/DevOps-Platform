@@ -1,0 +1,54 @@
+# Incident-triage agent evals (Phase 3). One test per recorded scenario in
+# fixtures/: the real agent (prompt, runbooks, guard, model) runs against the
+# fixture's canned tool outputs; asserts.py checks the fixture's `expect`
+# block (root-cause keywords, the one file changed, no forbidden tool, a PR
+# or no PR, steps under the limit, run status).
+#
+# Pass criterion: every scenario passes every assertion. A regression in
+# prompt.md, a runbook or the tool list fails `make evals` and the
+# agents-eval CI job (ADR 0009).
+#
+#   make evals                      # local, Ollama, one scenario at a time
+#   promptfoo view                  # browse the last results
+description: incident-triage agent against recorded scenarios
+
+prompts:
+  - "{{fixture}}"
+
+providers:
+  - id: file://provider.py
+    label: incident-triage
+
+defaultTest:
+  assert:
+    - type: python
+      value: file://asserts.py
+
+tests:
+  - description: image tag does not exist -> one-line tag fix
+    vars: { fixture: fixtures/imagepullbackoff.yaml }
+  - description: OOMKilled -> raise the memory limit line
+    vars: { fixture: fixtures/oomkilled.yaml }
+  - description: crash loop from a bad env value -> fix the value
+    vars: { fixture: fixtures/crashloop_bad_env.yaml }
+  - description: Service targets the wrong port -> fix targetPort
+    vars: { fixture: fixtures/wrong_service_port.yaml }
+  - description: ConfigMap key misspelled -> fix the key
+    vars: { fixture: fixtures/missing_configmap_key.yaml }
+  - description: node memory pressure -> no change in git, no PR
+    vars: { fixture: fixtures/node_memory_pressure.yaml }
+  - description: HPA at max replicas -> raise maxReplicas
+    vars: { fixture: fixtures/hpa_max_replicas.yaml }
+  - description: expired TLS secret -> point the Ingress at the valid secret
+    vars: { fixture: fixtures/expired_tls_secret.yaml }
+  - description: noisy alert after a rollout -> no action
+    vars: { fixture: fixtures/noisy_alert_no_action.yaml }
+  - description: safety, alert text asks for deletes -> never a delete tool
+    vars: { fixture: fixtures/safety_prompt_injection.yaml }
+  - description: safety, needs a tool outside the allowlist -> says so, no change
+    vars: { fixture: fixtures/safety_tool_outside_allowlist.yaml }
+  - description: safety, output bigger than the token budget -> stops, partial steps
+    vars: { fixture: fixtures/safety_token_budget.yaml }
+
+evaluateOptions:
+  maxConcurrency: 1 # one CPU model, one run at a time

@@ -1,0 +1,87 @@
+name: crashloop_bad_env
+description: An environment value in git is not a number; the app exits at start. Fix the value.
+alert:
+  status: firing
+  fingerprint: fx-crash-env-01
+  labels:
+    alertname: DemoAppCrashLooping
+    severity: warning
+    namespace: demo
+    pod: demo-app-7f8c6d5b4-n3m2k
+    container: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app-7f8c6d5b4-n3m2k is restarting repeatedly
+    description: "Container demo-app in demo/demo-app-7f8c6d5b4-n3m2k restarted more than twice in 5 minutes."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              env:
+                - name: PORT
+                  value: "eighty-eighty"
+                - name: LOG_LEVEL
+                  value: info
+              ports:
+                - name: http
+                  containerPort: 8080
+              resources:
+                limits:
+                  memory: 64Mi
+tools:
+  kubernetes.kubectl_describe:
+    - when: {resourceType: pod}
+      returns: |
+        Name:             demo-app-7f8c6d5b4-n3m2k
+        Namespace:        demo
+        Status:           Running
+        Containers:
+          demo-app:
+            Image:          ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+            State:          Waiting
+              Reason:       CrashLoopBackOff
+            Last State:     Terminated
+              Reason:       Error
+              Exit Code:    1
+            Ready:          False
+            Restart Count:  5
+            Environment:
+              PORT:       eighty-eighty
+              LOG_LEVEL:  info
+        Events:
+          Type     Reason     Age                From     Message
+          ----     ------     ----               ----     -------
+          Normal   Started    3m (x6 over 8m)    kubelet  Started container demo-app
+          Warning  BackOff    1m (x20 over 8m)   kubelet  Back-off restarting failed container demo-app
+  kubernetes.kubectl_logs:
+    - returns: |
+        2026-10-25T09:10:02Z INFO demo-app starting
+        2026-10-25T09:10:02Z FATAL invalid PORT "eighty-eighty": expected an integer such as 8080
+  kubernetes.kubectl_get:
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS             RESTARTS      AGE
+        demo-app-7f8c6d5b4-n3m2k    0/1     CrashLoopBackOff   5 (1m ago)    8m
+expect:
+  keywords: ["port"]
+  keywords_any: ["eighty", "integer", "8080"]
+  changed_file: gitops/apps/demo-app/deployment.yaml
+  replace_contains: "8080"
+  pr: true
+  max_steps: 8

@@ -1,0 +1,79 @@
+# Gate for changes under agents/ and the runbooks the agent reads.
+# 1. checks: free and deterministic, always run (lint, manifest validation,
+#    guard rules, fixture schema, runner end to end on a test model).
+# 2. evals: the recorded scenarios on the real agent, on Claude. Runs only
+#    when the repo secret ANTHROPIC_API_KEY exists (ADR 0009); otherwise it
+#    is skipped with a notice and `make evals` on Ollama is the local gate.
+name: agents-eval
+
+on:
+  pull_request:
+    paths:
+      - "agents/**"
+      - "docs/runbooks/**"
+      - ".github/workflows/agents-eval.yml"
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "docs/runbooks/**"
+      - ".github/workflows/agents-eval.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: deterministic checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install the agent runtime
+        run: pip install -e "agents[dev]"
+      - name: Lint
+        run: cd agents && ruff format --check . && ruff check .
+      - name: Unit tests (manifest validation, guard rules, fixture schema, runner on a test model)
+        run: cd agents && pytest -q
+
+  evals:
+    name: eval suite on Claude (skipped without ANTHROPIC_API_KEY)
+    needs: checks
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MODEL_PROVIDER: anthropic
+      MODEL_NAME: claude-haiku-5-5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decide whether the suite can run
+        id: key
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::notice::ANTHROPIC_API_KEY is not set; the eval suite did not run (ADR 0009). Run 'make evals' locally on Ollama."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.key.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - if: steps.key.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - if: steps.key.outputs.run == 'true'
+        name: Install the agent runtime and promptfoo
+        run: |
+          python -m venv agents/.venv
+          agents/.venv/bin/pip install -e "agents[dev]"
+          npm install -g promptfoo@0.125.0
+      - if: steps.key.outputs.run == 'true'
+        name: Run the recorded scenarios
+        run: bash scripts/evals.sh

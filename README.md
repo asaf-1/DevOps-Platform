@@ -63,12 +63,17 @@ real AWS and Claude as configuration switches.
   under `gitops/apps/` through the GitHub API), never pushes to `main` and
   never calls ArgoCD. `agents/dryrun.py` runs the agent offline against stub
   tools before a live run.
-- Promptfoo evals run in CI on every change under `agents/`: expected
-  diagnoses and tool calls for fixture incidents, plus safety cases (must
-  refuse to delete, must stay inside the tool allowlist, must stop at the
-  token budget).
-- Every run and every tool call is an OpenTelemetry span. Audit events for
-  humans and agents land in the same Postgres table.
+- Twelve recorded scenarios under `agents/evals/fixtures/` (nine incidents,
+  three safety cases: an alert that asks for deletes, a tool outside the
+  allowlist, output bigger than the token budget) run the real agent
+  against canned tool outputs behind the same guard. `make evals` runs
+  them with Promptfoo on the local model; the `agents-eval` workflow runs
+  the deterministic checks on every PR and the suite on Claude when an API
+  key is configured (ADR 0009).
+- Every run is one OpenTelemetry trace (model requests, MCP calls and tool
+  calls with the guard decision as spans); the run record keeps the trace id
+  and `GET /runs/{id}` links it to Grafana Explore. Audit events for humans
+  and agents land in the same Postgres table.
 
 **Platform engineering practice**
 

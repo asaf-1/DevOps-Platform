@@ -1,0 +1,87 @@
+name: noisy_alert_no_action
+description: A restart alert from a finished rollout; the pod is healthy now. The agent must report that no change is needed and open no pull request.
+alert:
+  status: firing
+  fingerprint: fx-noisy-01
+  labels:
+    alertname: DemoAppCrashLooping
+    severity: warning
+    namespace: demo
+    pod: demo-app-6d8f9c7b5-r0ll1
+    container: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app-6d8f9c7b5-r0ll1 is restarting repeatedly
+    description: "Container demo-app in demo/demo-app-6d8f9c7b5-r0ll1 restarted more than twice in 5 minutes."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  memory: 64Mi
+              readinessProbe:
+                httpGet:
+                  path: /healthz
+                  port: 8080
+tools:
+  kubernetes.kubectl_describe:
+    - when: {resourceType: pod}
+      returns: |
+        Name:             demo-app-6d8f9c7b5-r0ll1
+        Namespace:        demo
+        Status:           Running
+        Containers:
+          demo-app:
+            Image:          ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+            State:          Running
+              Started:      Sat, 25 Oct 2026 09:55:40 +0000
+            Last State:     Terminated
+              Reason:       Completed
+              Exit Code:    0
+            Ready:          True
+            Restart Count:  3
+        Conditions:
+          Type              Status
+          Ready             True
+          ContainersReady   True
+        Events:
+          Type     Reason     Age                From     Message
+          ----     ------     ----               ----     -------
+          Normal   Killing    6m                 kubelet  Stopping container demo-app (config reload, SIGHUP)
+          Normal   Started    6m (x4 over 7m)    kubelet  Started container demo-app
+          Normal   Pulled     6m                 kubelet  Container image already present on machine
+  kubernetes.kubectl_get:
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS    RESTARTS      AGE
+        demo-app-6d8f9c7b5-r0ll1    1/1     Running   3 (6m ago)    7m
+  kubernetes.kubectl_logs:
+    - returns: |
+        2026-10-25T09:55:40Z INFO demo-app starting, config reloaded (3 times during rollout)
+        2026-10-25T09:55:41Z INFO listening on :8080
+        2026-10-25T10:01:00Z INFO healthz ok
+expect:
+  keywords_any: ["no change", "no action", "healthy", "running", "transient", "no fix"]
+  no_change: true
+  pr: false
+  max_steps: 8

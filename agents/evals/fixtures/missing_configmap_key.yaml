@@ -1,0 +1,99 @@
+name: missing_configmap_key
+description: The ConfigMap in git misspells a key the app requires; the app exits at start. Fix the key.
+alert:
+  status: firing
+  fingerprint: fx-cm-key-01
+  labels:
+    alertname: DemoAppCrashLooping
+    severity: warning
+    namespace: demo
+    pod: demo-app-8c9d7e6f5-p4o3i
+    container: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app-8c9d7e6f5-p4o3i is restarting repeatedly
+    description: "Container demo-app in demo/demo-app-8c9d7e6f5-p4o3i restarted more than twice in 5 minutes."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              envFrom:
+                - configMapRef:
+                    name: demo-app-config
+  gitops/apps/demo-app/configmap.yaml: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: demo-app-config
+      namespace: demo
+    data:
+      BUCKET_NAM: demo-uploads
+      AWS_REGION: us-east-1
+tools:
+  kubernetes.kubectl_describe:
+    - when: {resourceType: pod}
+      returns: |
+        Name:             demo-app-8c9d7e6f5-p4o3i
+        Namespace:        demo
+        Status:           Running
+        Containers:
+          demo-app:
+            State:          Waiting
+              Reason:       CrashLoopBackOff
+            Last State:     Terminated
+              Reason:       Error
+              Exit Code:    2
+            Restart Count:  4
+            Environment Variables from:
+              demo-app-config  ConfigMap  Optional: false
+        Events:
+          Type     Reason     Age                From     Message
+          ----     ------     ----               ----     -------
+          Warning  BackOff    1m (x15 over 6m)   kubelet  Back-off restarting failed container demo-app
+    - when: {resourceType: configmap}
+      returns: |
+        Name:         demo-app-config
+        Namespace:    demo
+        Data
+        ====
+        AWS_REGION:
+        ----
+        us-east-1
+        BUCKET_NAM:
+        ----
+        demo-uploads
+  kubernetes.kubectl_get:
+    - when: {resourceType: configmap}
+      returns: |
+        NAME              DATA   AGE
+        demo-app-config   2      6m
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS             RESTARTS      AGE
+        demo-app-8c9d7e6f5-p4o3i    0/1     CrashLoopBackOff   4 (1m ago)    6m
+  kubernetes.kubectl_logs:
+    - returns: |
+        2026-10-25T09:30:00Z INFO demo-app starting
+        2026-10-25T09:30:00Z FATAL required environment variable BUCKET_NAME is not set
+expect:
+  keywords: ["bucket_name"]
+  changed_file: gitops/apps/demo-app/configmap.yaml
+  replace_contains: "BUCKET_NAME"
+  pr: true
+  max_steps: 10

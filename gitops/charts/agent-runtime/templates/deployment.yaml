@@ -59,6 +59,8 @@ spec:
               value: {{ .Values.github.repo | quote }}
             - name: GRAFANA_URL
               value: {{ .Values.grafana.url | quote }}
+            - name: GRAFANA_PUBLIC_URL
+              value: {{ .Values.grafana.publicUrl | quote }}
             - name: GRAFANA_SERVICE_ACCOUNT_TOKEN
               valueFrom:
                 secretKeyRef:

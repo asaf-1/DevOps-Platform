@@ -1,0 +1,91 @@
+name: oomkilled
+description: The memory limit in git is too small; the container is OOMKilled on every start. Raise the limit line.
+alert:
+  status: firing
+  fingerprint: fx-oom-01
+  labels:
+    alertname: DemoAppOOMKilled
+    severity: critical
+    namespace: demo
+    pod: demo-app-5b7d9c6f4-q8w2e
+    container: demo-app
+    app: demo-app
+  annotations:
+    summary: demo-app-5b7d9c6f4-q8w2e was OOMKilled
+    description: "Container demo-app in demo/demo-app-5b7d9c6f4-q8w2e exceeded its memory limit; see resources.limits.memory in gitops/apps/demo-app/deployment.yaml."
+files:
+  gitops/apps/demo-app/deployment.yaml: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: demo-app
+      namespace: demo
+    spec:
+      replicas: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: demo-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: demo-app
+        spec:
+          containers:
+            - name: demo-app
+              image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+              ports:
+                - name: http
+                  containerPort: 8080
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 24Mi
+tools:
+  kubernetes.kubectl_describe:
+    - when: {resourceType: pod}
+      returns: |
+        Name:             demo-app-5b7d9c6f4-q8w2e
+        Namespace:        demo
+        Status:           Running
+        Containers:
+          demo-app:
+            Image:          ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+            State:          Waiting
+              Reason:       CrashLoopBackOff
+            Last State:     Terminated
+              Reason:       OOMKilled
+              Exit Code:    137
+              Started:      Sat, 25 Oct 2026 09:01:12 +0000
+              Finished:     Sat, 25 Oct 2026 09:01:19 +0000
+            Ready:          False
+            Restart Count:  6
+            Limits:
+              memory:  24Mi
+            Requests:
+              cpu:     10m
+              memory:  16Mi
+        Events:
+          Type     Reason     Age                 From     Message
+          ----     ------     ----                ----     -------
+          Normal   Pulled     5m (x7 over 12m)    kubelet  Container image already present on machine
+          Normal   Created    5m (x7 over 12m)    kubelet  Created container demo-app
+          Normal   Started    5m (x7 over 12m)    kubelet  Started container demo-app
+          Warning  BackOff    1m (x30 over 11m)   kubelet  Back-off restarting failed container demo-app
+  kubernetes.kubectl_get:
+    - when: {resourceType: pod}
+      returns: |
+        NAME                        READY   STATUS             RESTARTS      AGE
+        demo-app-5b7d9c6f4-q8w2e    0/1     CrashLoopBackOff   6 (1m ago)    12m
+  kubernetes.kubectl_logs:
+    - returns: |
+        2026-10-25T09:01:12Z INFO demo-app starting, bucket demo-uploads
+        2026-10-25T09:01:14Z INFO loading templates into memory (38 MiB)
+expect:
+  keywords: ["oomkilled"]
+  keywords_any: ["memory limit", "limits.memory", "64Mi", "limit"]
+  changed_file: gitops/apps/demo-app/deployment.yaml
+  replace_contains: "64Mi"
+  pr: true
+  max_steps: 8

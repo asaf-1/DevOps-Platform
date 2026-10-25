@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from opentelemetry import trace
+from opentelemetry.context import Context
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
@@ -166,8 +168,36 @@ class Runner:
             "and the pull request URL."
         )
 
-    async def run(self, run_id: str, alert: dict[str, Any]) -> dict[str, Any]:
+    async def run(
+        self, run_id: str, alert: dict[str, Any], fixture: Any | None = None
+    ) -> dict[str, Any]:
+        """Run the agent for one alert. A fixture replaces the MCP tools (evals, dry runs).
+
+        Each run is its own trace (the webhook request that started it is a
+        link, not a parent), so the run's trace id opens it in Grafana.
+        """
         m = self.spec.manifest
+        if fixture is not None and getattr(fixture, "overrides", None):
+            m = m.model_copy(update=dict(fixture.overrides))
+        tracer = trace.get_tracer("agent-runtime")
+        parent = trace.get_current_span().get_span_context()
+        links = [trace.Link(parent)] if parent.is_valid else []
+        with tracer.start_as_current_span(
+            f"agent run {m.name}", context=Context(), links=links
+        ) as span:
+            labels = alert.get("labels", {})
+            span.set_attribute("run.id", run_id)
+            span.set_attribute("alert.name", str(labels.get("alertname", "")))
+            span.set_attribute("alert.namespace", str(labels.get("namespace", "")))
+            span.set_attribute("model", f"{self.model_cfg.provider}:{self.model_cfg.name}")
+            ctx = span.get_span_context()
+            if ctx.is_valid:
+                self.store.set_trace(run_id, format(ctx.trace_id, "032x"))
+            return await self._run(run_id, alert, m, fixture)
+
+    async def _run(
+        self, run_id: str, alert: dict[str, Any], m: AgentManifest, fixture: Any | None
+    ) -> dict[str, Any]:
         fingerprint = str(alert.get("fingerprint") or run_id)
         guard = ToolGuard(
             allowed_tools=set(m.allowed_tools),
@@ -176,7 +206,9 @@ class Runner:
             run_id=run_id,
             store=self.store,
         )
-        toolsets = build_toolsets(self.mcp_doc, m, guard, make_local_toolset(self.repo))
+        toolsets = build_toolsets(
+            self.mcp_doc, m, guard, make_local_toolset(self.repo), fixture=fixture
+        )
         self.store.audit(
             "agent.run.started",
             actor=m.name,
