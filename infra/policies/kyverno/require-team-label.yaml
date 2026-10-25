@@ -1,0 +1,28 @@
+# Every workload names the team that owns it, the same label the Terraform
+# modules require on cloud resources, so cost and on-call have one key.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-team-label
+  annotations:
+    policies.kyverno.io/title: Require the team label
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: >-
+      Deployments, StatefulSets, DaemonSets and CronJobs in the demo and
+      platform namespaces must carry a non-empty "team" label.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: team-label
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, StatefulSet, DaemonSet, CronJob]
+              namespaces: [demo, platform]
+      validate:
+        message: "the label team=<owning team> is required"
+        pattern:
+          metadata:
+            labels:
+              team: "?*"

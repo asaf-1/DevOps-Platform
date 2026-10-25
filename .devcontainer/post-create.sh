@@ -28,3 +28,10 @@ for t in python node npm terraform pulumi kubectl helm kind conftest checkov inf
   printf '%-10s %s\n' "$t" "$("$t" --version 2>/dev/null | head -1 || echo missing)"
 done
 printf '%-10s %s\n' argocd "$(argocd version --client --short 2>/dev/null || echo missing)"
+
+# Kyverno CLI for `kyverno test` in make lint (pinned; bump with the chart).
+if ! command -v kyverno >/dev/null 2>&1; then
+  KYVERNO_CLI_VERSION="${KYVERNO_CLI_VERSION:-v1.14.4}"
+  curl -fsSL "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_CLI_VERSION}/kyverno-cli_${KYVERNO_CLI_VERSION}_linux_x86_64.tar.gz" \
+    | sudo tar -xz -C /usr/local/bin kyverno || echo "kyverno CLI install failed (lint skips the policy tests)"
+fi

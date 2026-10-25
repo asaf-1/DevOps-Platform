@@ -1,0 +1,38 @@
+# The third lock on "agents only propose": even if the agent's RBAC were
+# widened by mistake, the admission controller refuses any create, update,
+# delete or connect made by the agent-runtime service account, in every
+# namespace. The first two locks are the tool manifest (checked at startup)
+# and the read-only Role; see ADR 0008.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: deny-agent-runtime-writes
+  annotations:
+    policies.kyverno.io/title: Deny writes by the agent runtime
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Any CREATE, UPDATE, DELETE or CONNECT request made by the ServiceAccount
+      platform/agent-runtime is denied, cluster-wide.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: deny-writes
+      match:
+        any:
+          - resources:
+              kinds: ["*"]
+            subjects:
+              - kind: ServiceAccount
+                name: agent-runtime
+                namespace: platform
+      validate:
+        message: >-
+          the agent-runtime service account is read-only; agents propose changes
+          as pull requests, never directly to the cluster
+        deny:
+          conditions:
+            any:
+              - key: "{{ request.operation }}"
+                operator: AnyIn
+                value: [CREATE, UPDATE, DELETE, CONNECT]

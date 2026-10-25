@@ -86,6 +86,48 @@ alertmanager:
 
 # Alert rules for the demo app, short `for` so demos are quick.
 additionalPrometheusRulesMap:
+  # Service levels of the platform itself. These alerts carry no demo
+  # namespace, so they go to Alertmanager's default receiver, not the agent.
+  platform-slo:
+    groups:
+      - name: platform-slo
+        rules:
+          - alert: PlatformApiDown
+            expr: up{job="platform-api"} == 0
+            for: 3m
+            labels:
+              severity: critical
+              slo: platform-api-availability
+            annotations:
+              summary: "platform API is not being scraped"
+              description: "Prometheus could not scrape the platform API for 3 minutes; the self-service path is down."
+          - alert: AgentRuntimeDown
+            expr: up{job="agent-runtime"} == 0
+            for: 3m
+            labels:
+              severity: critical
+              slo: agent-runtime-availability
+            annotations:
+              summary: "agent runtime is not being scraped"
+              description: "Prometheus could not scrape the agent runtime for 3 minutes; alerts will not be triaged."
+          - alert: RequestToDeployedSLO
+            expr: platform_request_time_to_deployed_seconds{quantile="0.95"} > 1800
+            for: 15m
+            labels:
+              severity: warning
+              slo: request-to-deployed-30m
+            annotations:
+              summary: "p95 request-to-deployed is above 30 minutes"
+              description: "The 95th percentile of time from request to deployed is {{ $value | humanizeDuration }} (SLO: 30 minutes for small resources)."
+          - alert: AgentFirstResponseSLO
+            expr: agent_run_first_tool_seconds{quantile="0.5"} > 180
+            for: 15m
+            labels:
+              severity: warning
+              slo: agent-first-response-3m
+            annotations:
+              summary: "agent takes more than 3 minutes to its first tool call"
+              description: "Median time from alert to the agent's first tool call is {{ $value | humanizeDuration }} (SLO: 3 minutes)."
   demo-app:
     groups:
       - name: demo-app

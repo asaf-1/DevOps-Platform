@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: agent-runtime
     app.kubernetes.io/part-of: platform
+    team: platform
 spec:
   replicas: 1
   strategy:

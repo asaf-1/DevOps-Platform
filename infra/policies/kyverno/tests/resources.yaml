@@ -1,0 +1,139 @@
+# Resources for `kyverno test`: one good workload per kind, and one bad
+# workload per rule.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: good-deploy
+  namespace: demo
+  labels:
+    team: demo
+spec:
+  selector:
+    matchLabels: {app: good}
+  template:
+    metadata:
+      labels: {app: good}
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: no-limits
+  namespace: demo
+  labels:
+    team: demo
+spec:
+  selector:
+    matchLabels: {app: nolimits}
+  template:
+    metadata:
+      labels: {app: nolimits}
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: no-team
+  namespace: platform
+spec:
+  selector:
+    matchLabels: {app: noteam}
+  template:
+    metadata:
+      labels: {app: noteam}
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: latest-pod
+  namespace: demo
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/asaf-1/devops-platform/demo-app:latest
+      resources:
+        requests: {cpu: 10m, memory: 32Mi}
+        limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: untagged-pod
+  namespace: platform
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/asaf-1/devops-platform/demo-app
+      resources:
+        requests: {cpu: 10m, memory: 32Mi}
+        limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: tagged-pod
+  namespace: platform
+spec:
+  containers:
+    - name: app
+      image: ghcr.io/asaf-1/devops-platform/demo-app:sha-ae38845
+      resources:
+        requests: {cpu: 10m, memory: 32Mi}
+        limits: {memory: 64Mi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: good-cron
+  namespace: platform
+  labels:
+    team: platform
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: export
+              image: ghcr.io/asaf-1/devops-platform/platform-api:sha-ae38845
+              resources:
+                requests: {cpu: 20m, memory: 128Mi}
+                limits: {memory: 256Mi}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cron-no-resources
+  namespace: platform
+  labels:
+    team: platform
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: export
+              image: ghcr.io/asaf-1/devops-platform/platform-api:sha-ae38845

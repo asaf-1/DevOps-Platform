@@ -28,6 +28,13 @@ else
   warn "platform/api/.venv not found; skipping Python checks (see platform/api/README.md)"
 fi
 
+if command -v kyverno >/dev/null 2>&1; then
+  step "kyverno test (cluster policies against good and bad resources)"
+  check kyverno test "$REPO_ROOT/infra/policies/kyverno/tests"
+else
+  warn "kyverno CLI not found; skipping policy tests (devcontainer post-create installs it)"
+fi
+
 AG="$REPO_ROOT/agents/.venv/bin"
 if [ -x "$AG/ruff" ]; then
   step "ruff format --check (agents)"

@@ -8,7 +8,12 @@ from tests.test_server import ALERT, make_client
 def test_agent_metrics(tmp_path: Path) -> None:
     client, runner, store = make_client(tmp_path)
     store.create_run("run-1", "incident-triage", "fp-1", ALERT)
-    store.add_step("run-1", {"tool": "kubernetes.kubectl_describe", "ok": True})
+    from datetime import UTC, datetime
+
+    store.add_step(
+        "run-1",
+        {"tool": "kubernetes.kubectl_describe", "ok": True, "at": datetime.now(UTC).isoformat()},
+    )
     store.finish_run("run-1", status="done", report="r", usage={"total_tokens": 1200})
     store.create_run("run-2", "incident-triage", "fp-2", ALERT)
     store.finish_run("run-2", status="failed", error="boom")
@@ -33,5 +38,6 @@ def test_agent_metrics(tmp_path: Path) -> None:
     assert "agent_run_steps_mean 1.0" in text
     assert "agent_run_tokens_mean 1200.0" in text
     assert 'agent_run_duration_seconds{quantile="0.5"}' in text
+    assert 'agent_run_first_tool_seconds{quantile="0.5"}' in text
     assert 'agent_tool_calls{outcome="refused",tool="kubernetes.kubectl_delete"} 1.0' in text
     assert "agent_prompt_info{version=" in text

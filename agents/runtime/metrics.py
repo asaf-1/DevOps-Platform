@@ -93,6 +93,29 @@ class AgentCollector(Collector):
                     dur.add_metric([str(q)], v)
             yield dur
 
+            # time to the first tool call: the agent's first response to an alert
+            first: list[float] = []
+            for r in recent:
+                steps_list = r.steps or []
+                at = steps_list[0].get("at") if steps_list else None
+                if at:
+                    try:
+                        first.append(
+                            (datetime.fromisoformat(at) - _aware(r.started_at)).total_seconds()
+                        )
+                    except ValueError:
+                        pass
+            ft = GaugeMetricFamily(
+                "agent_run_first_tool_seconds",
+                "Seconds from alert to the first tool call",
+                labels=["quantile"],
+            )
+            for q in QUANTILES:
+                v = percentile(first, q)
+                if v is not None:
+                    ft.add_metric([str(q)], v)
+            yield ft
+
             calls = GaugeMetricFamily(
                 "agent_tool_calls", "Tool calls by tool and outcome", labels=["tool", "outcome"]
             )

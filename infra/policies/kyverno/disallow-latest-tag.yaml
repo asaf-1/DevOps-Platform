@@ -1,0 +1,42 @@
+# An image without a tag, or with the tag "latest", can change under a
+# running Deployment and makes "what is deployed" unanswerable. The build
+# workflow publishes sha-<7> tags; GitOps files must use those (or main for
+# a repair, which the next build bumps).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow the latest tag
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Pods in the demo and platform namespaces (and the controllers that create
+      them) must use an image with an explicit tag that is not "latest".
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [demo, platform]
+      validate:
+        message: "an image tag is required (sha-<7> from the build workflow, or main)"
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: disallow-latest
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaces: [demo, platform]
+      validate:
+        message: "the latest tag is not allowed; use a sha-<7> tag from the build workflow"
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

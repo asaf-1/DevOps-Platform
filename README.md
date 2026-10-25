@@ -55,7 +55,12 @@ real AWS and Claude as configuration switches.
   adapt; one triage per namespace at a time; failed runs back off.
 - Three independent layers enforce propose-only: the manifest, a Kubernetes
   Role with only `get`, `list` and `watch`, and a Kyverno policy that denies
-  writes from the agent's service account.
+  writes from the agent's service account cluster-wide. Three more Kyverno
+  policies (`infra/policies/kyverno/`) require requests and limits and a
+  `team` label and refuse the `latest` tag; `make lint` runs their test
+  suite with the Kyverno CLI. SLO alerts (API and agent availability,
+  request-to-deployed under 30 minutes, agent first response under 3
+  minutes) go to Alertmanager's default receiver, never to the agent.
 - The incident-triage agent receives Alertmanager webhooks, reads pods, logs
   and events, cites its evidence, and opens a pull request from an
   `agent/incident-<fingerprint>` branch with a diagnosis and a one-line

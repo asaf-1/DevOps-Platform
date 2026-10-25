@@ -3,6 +3,7 @@ app.kubernetes.io/name: platform-api
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/part-of: platform
+team: platform
 {{- end }}
 
 {{- define "platform-api.selectorLabels" -}}

@@ -7,6 +7,7 @@ metadata:
   namespace: demo
   labels:
     app.kubernetes.io/name: demo-app
+    team: demo
 spec:
   replicas: 1
   selector:

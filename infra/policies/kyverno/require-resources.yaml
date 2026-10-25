@@ -1,0 +1,62 @@
+# Every container in the platform and demo namespaces declares CPU and
+# memory requests and a memory limit: the laptop stays schedulable and an
+# OOM kill is a visible event, not a silent slowdown.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resources
+  annotations:
+    policies.kyverno.io/title: Require requests and limits
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Deployments, StatefulSets, DaemonSets, Jobs and CronJobs in the demo and
+      platform namespaces must set resources.requests.cpu,
+      resources.requests.memory and resources.limits.memory on every container.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: workloads
+      match:
+        any:
+          - resources:
+              kinds: [Deployment, StatefulSet, DaemonSet, Job]
+              namespaces: [demo, platform]
+      validate:
+        message: >-
+          every container must set resources.requests.cpu,
+          resources.requests.memory and resources.limits.memory
+        pattern:
+          spec:
+            template:
+              spec:
+                containers:
+                  - resources:
+                      requests:
+                        cpu: "?*"
+                        memory: "?*"
+                      limits:
+                        memory: "?*"
+    - name: cronjobs
+      match:
+        any:
+          - resources:
+              kinds: [CronJob]
+              namespaces: [demo, platform]
+      validate:
+        message: >-
+          every container must set resources.requests.cpu,
+          resources.requests.memory and resources.limits.memory
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                      - resources:
+                          requests:
+                            cpu: "?*"
+                            memory: "?*"
+                          limits:
+                            memory: "?*"

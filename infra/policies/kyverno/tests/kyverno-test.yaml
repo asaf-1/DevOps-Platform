@@ -1,0 +1,70 @@
+# `kyverno test infra/policies/kyverno/tests` (part of make lint when the CLI
+# is installed). The deny-agent-runtime-writes policy matches on the
+# requesting user, which the CLI cannot simulate here; it is verified live
+# (PLAN section 7.3 verify).
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: platform-policies
+policies:
+  - ../require-resources.yaml
+  - ../disallow-latest-tag.yaml
+  - ../require-team-label.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: require-resources
+    rule: workloads
+    kind: Deployment
+    resources: [good-deploy, no-team]
+    result: pass
+  - policy: require-resources
+    rule: workloads
+    kind: Deployment
+    resources: [no-limits]
+    result: fail
+  - policy: require-resources
+    rule: cronjobs
+    kind: CronJob
+    resources: [good-cron]
+    result: pass
+  - policy: require-resources
+    rule: cronjobs
+    kind: CronJob
+    resources: [cron-no-resources]
+    result: fail
+  - policy: disallow-latest-tag
+    rule: require-image-tag
+    kind: Pod
+    resources: [tagged-pod, latest-pod]
+    result: pass
+  - policy: disallow-latest-tag
+    rule: require-image-tag
+    kind: Pod
+    resources: [untagged-pod]
+    result: fail
+  - policy: disallow-latest-tag
+    rule: disallow-latest
+    kind: Pod
+    resources: [tagged-pod, untagged-pod]
+    result: pass
+  - policy: disallow-latest-tag
+    rule: disallow-latest
+    kind: Pod
+    resources: [latest-pod]
+    result: fail
+  - policy: require-team-label
+    rule: team-label
+    kind: Deployment
+    resources: [good-deploy, no-limits]
+    result: pass
+  - policy: require-team-label
+    rule: team-label
+    kind: Deployment
+    resources: [no-team]
+    result: fail
+  - policy: require-team-label
+    rule: team-label
+    kind: CronJob
+    resources: [good-cron, cron-no-resources]
+    result: pass
