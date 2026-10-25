@@ -1,0 +1,51 @@
+{{- if .Values.audit.export.enabled }}
+# Nightly export of the audit trail as JSONL to a bucket (LocalStack locally).
+# Same image and database as the API; python -m platform_api.export_audit.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: platform-audit-export
+  labels:
+    app.kubernetes.io/name: platform-audit-export
+    app.kubernetes.io/part-of: platform-api
+    team: platform
+spec:
+  schedule: {{ .Values.audit.export.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: platform-audit-export
+            team: platform
+        spec:
+          serviceAccountName: platform-api
+          restartPolicy: OnFailure
+          containers:
+            - name: export
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["python", "-m", "platform_api.export_audit"]
+              env:
+                {{- include "platform-api.env" . | nindent 16 }}
+                - name: AUDIT_EXPORT_BUCKET
+                  value: {{ .Values.audit.export.bucket | quote }}
+                - name: AWS_ENDPOINT_URL
+                  value: {{ .Values.worker.localstackEndpoint | quote }}
+                - name: AWS_ACCESS_KEY_ID
+                  value: test
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: test
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+              resources:
+                requests:
+                  cpu: 20m
+                  memory: 128Mi
+                limits:
+                  memory: 256Mi
+{{- end }}

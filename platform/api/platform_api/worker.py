@@ -197,6 +197,7 @@ class Worker:
                 self.store.add_event(
                     "merged",
                     actor="platform-auto-merge",
+                    approval_ref=merge_sha,
                     request_id=req.id,
                     details={"pr_number": req.pr_number, "merge_commit_sha": merge_sha},
                 )
@@ -225,6 +226,7 @@ class Worker:
                 RequestState.APPROVED,
                 actor="github/iac-approve",
                 actor_type="human",
+                approval_ref=merge_sha,
                 details={
                     "merge_commit_sha": merge_sha,
                     "merged_by": (pr.get("merged_by") or {}).get("login"),

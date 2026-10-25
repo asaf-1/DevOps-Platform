@@ -80,3 +80,9 @@ class AuditEvent(BaseModel):
     actor_type: Literal["human", "agent", "system"]
     at: datetime
     details: dict[str, Any] = Field(default_factory=dict)
+    target: str | None = None  # what was acted on: "<type>/<name>", a tool, a PR
+    run_id: str | None = None  # agent run, when an agent acted
+    input_hash: str | None = None  # sha256 of the request inputs
+    outcome: str | None = None  # ok, failed, refused, error
+    approval_ref: str | None = None  # the approval this rests on (merge commit, approver)
+    trace_id: str | None = None  # OpenTelemetry trace of the run

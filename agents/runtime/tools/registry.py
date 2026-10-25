@@ -110,6 +110,10 @@ class ToolGuard:
                 "agent.tool_call" if rec.refused is None else "agent.tool_refused",
                 actor=self.agent,
                 actor_type="agent",
+                run_id=self.run_id,
+                target=rec.tool,
+                outcome="refused" if rec.refused else ("ok" if rec.ok else "error"),
+                trace_id=_current_trace_id(),
                 details={
                     "run_id": self.run_id,
                     "tool": rec.tool,
@@ -119,6 +123,11 @@ class ToolGuard:
                     **({"refused": rec.refused} if rec.refused else {}),
                 },
             )
+
+
+def _current_trace_id() -> str | None:
+    ctx = trace.get_current_span().get_span_context()
+    return format(ctx.trace_id, "032x") if ctx.is_valid else None
 
 
 def _truncate(text: str, n: int) -> str:

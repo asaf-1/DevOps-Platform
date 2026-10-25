@@ -78,6 +78,8 @@ async def test_guarded_toolset_records_and_refuses(tmp_path: Path) -> None:
     with guard.store.session() as s:
         rows = list(s.scalars(select(AuditRow)))
     assert rows and rows[-1].event == "agent.tool_refused" and rows[-1].actor_type == "agent"
+    assert rows[-1].run_id == "run-1" and rows[-1].target == "kubernetes.kubectl_get"
+    assert rows[-1].outcome == "refused"
     steps = guard.store.get_run("run-1")
     assert steps is None  # no run row created in this unit test; add_step is a no-op then
 

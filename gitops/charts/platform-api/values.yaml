@@ -25,6 +25,13 @@ github:
   secretName: platform-github
   tokenKey: token
 
+# Nightly export of the audit trail as JSONL to a bucket (LocalStack locally).
+audit:
+  export:
+    enabled: true
+    schedule: "0 2 * * *"
+    bucket: platform-audit
+
 worker:
   enabled: true
   intervalSeconds: 30

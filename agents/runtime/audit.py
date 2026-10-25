@@ -17,6 +17,49 @@ from sqlalchemy import JSON, DateTime, Integer, String, Text, create_engine, sel
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
+# Columns both services add to audit_events when missing (the table was born
+# with fewer). Shared shape: ts=at, action=event, plus these.
+AUDIT_EXTRA_COLUMNS = {
+    "target": "VARCHAR(200)",
+    "run_id": "VARCHAR(40)",
+    "input_hash": "VARCHAR(64)",
+    "outcome": "VARCHAR(20)",
+    "approval_ref": "VARCHAR(200)",
+    "trace_id": "VARCHAR(32)",
+}
+
+
+def ensure_audit_schema(engine: Engine) -> None:
+    """Add missing audit columns and make the table append-only.
+
+    Two services share `audit_events` and neither runs a migration tool, so
+    each adds what is missing at start (idempotent). On Postgres a trigger
+    refuses UPDATE and DELETE: the application role owns the table, so grants
+    alone could not make it append-only.
+    """
+    from sqlalchemy import inspect, text
+
+    existing = {c["name"] for c in inspect(engine).get_columns("audit_events")}
+    with engine.begin() as conn:
+        for name, ddl in AUDIT_EXTRA_COLUMNS.items():
+            if name not in existing:
+                conn.execute(text(f"ALTER TABLE audit_events ADD COLUMN {name} {ddl}"))
+        if engine.dialect.name == "postgresql":
+            conn.execute(
+                text(
+                    "CREATE OR REPLACE FUNCTION audit_events_append_only() RETURNS trigger AS $$ "
+                    "BEGIN RAISE EXCEPTION 'audit_events is append-only (% refused)', TG_OP; END; "
+                    "$$ LANGUAGE plpgsql"
+                )
+            )
+            conn.execute(text("DROP TRIGGER IF EXISTS audit_events_append_only ON audit_events"))
+            conn.execute(
+                text(
+                    "CREATE TRIGGER audit_events_append_only BEFORE UPDATE OR DELETE "
+                    "ON audit_events FOR EACH ROW EXECUTE FUNCTION audit_events_append_only()"
+                )
+            )
+
 
 def utcnow() -> datetime:
     return datetime.now(UTC)
@@ -45,6 +88,14 @@ class AuditRow(Base):
     actor_type: Mapped[str] = mapped_column(String(10))
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # Final shape (Phase 3): what was acted on, which run and trace, the hash
+    # of the request inputs, how it ended, and the approval it rests on.
+    target: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    run_id: Mapped[str | None] = mapped_column(String(40), index=True, nullable=True)
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    approval_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 class RunRow(Base):
@@ -92,7 +143,7 @@ class Store:
         self._ensure_columns()
 
     def _ensure_columns(self) -> None:
-        """Add columns introduced after a table already existed (two tables, no migration tool)."""
+        """Add columns introduced after a table already existed (no migration tool)."""
         from sqlalchemy import inspect, text
 
         table = RunRow.__tablename__
@@ -100,6 +151,7 @@ class Store:
         if "trace_id" not in existing:
             with self.engine.begin() as conn:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN trace_id VARCHAR(32)"))
+        ensure_audit_schema(self.engine)
 
     @classmethod
     def from_env(cls) -> Store:
@@ -123,6 +175,12 @@ class Store:
         actor_type: str = "agent",
         request_id: str | None = None,
         details: dict[str, Any] | None = None,
+        target: str | None = None,
+        outcome: str | None = "ok",
+        run_id: str | None = None,
+        trace_id: str | None = None,
+        input_hash: str | None = None,
+        approval_ref: str | None = None,
     ) -> None:
         with self.session() as s:
             s.add(
@@ -133,6 +191,12 @@ class Store:
                     actor_type=actor_type,
                     at=utcnow(),
                     details=details or {},
+                    target=target,
+                    outcome=outcome,
+                    run_id=run_id,
+                    trace_id=trace_id,
+                    input_hash=input_hash,
+                    approval_ref=approval_ref,
                 )
             )
 

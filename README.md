@@ -73,7 +73,9 @@ real AWS and Claude as configuration switches.
 - Every run is one OpenTelemetry trace (model requests, MCP calls and tool
   calls with the guard decision as spans); the run record keeps the trace id
   and `GET /runs/{id}` links it to Grafana Explore. Audit events for humans
-  and agents land in the same Postgres table.
+  and agents land in the same append-only Postgres table (a trigger refuses
+  updates and deletes) with target, outcome, approval reference, run id and
+  trace id; a nightly CronJob exports them as JSONL to a LocalStack bucket.
 
 **Platform engineering practice**
 

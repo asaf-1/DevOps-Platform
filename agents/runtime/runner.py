@@ -209,9 +209,16 @@ class Runner:
         toolsets = build_toolsets(
             self.mcp_doc, m, guard, make_local_toolset(self.repo), fixture=fixture
         )
+        ctx = trace.get_current_span().get_span_context()
+        trace_id = format(ctx.trace_id, "032x") if ctx.is_valid else None
+        target = str(alert.get("labels", {}).get("alertname", "alert"))
         self.store.audit(
             "agent.run.started",
             actor=m.name,
+            run_id=run_id,
+            trace_id=trace_id,
+            target=target,
+            outcome="started",
             details={
                 "run_id": run_id,
                 "fingerprint": fingerprint,
@@ -237,7 +244,13 @@ class Runner:
         except Exception as e:
             log.exception("run %s failed", run_id)
             self.store.audit(
-                "agent.run.failed", actor=m.name, details={"run_id": run_id, "error": str(e)[:500]}
+                "agent.run.failed",
+                actor=m.name,
+                run_id=run_id,
+                trace_id=trace_id,
+                target=target,
+                outcome="failed",
+                details={"run_id": run_id, "error": str(e)[:500]},
             )
             return self.store.finish_run(
                 run_id,
@@ -262,6 +275,11 @@ class Runner:
         self.store.audit(
             "agent.run.finished",
             actor=m.name,
+            run_id=run_id,
+            trace_id=trace_id,
+            target=target,
+            outcome="ok",
+            approval_ref=pr_url,
             details={"run_id": run_id, "pr_url": pr_url, "usage": usage_dict},
         )
         return self.store.finish_run(
