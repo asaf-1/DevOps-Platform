@@ -23,7 +23,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: demo-app
-          image: ghcr.io/asaf-1/devops-platform/demo-app:does-not-exist
+          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-d38fccf
           imagePullPolicy: Always
           ports:
             - name: http
@@ -40,9 +40,9 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 16Mi
+              memory: 32Mi
             limits:
-              memory: 16Mi
+              memory: 64Mi
           readinessProbe:
             httpGet:
               path: /healthz
