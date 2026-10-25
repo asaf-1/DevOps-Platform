@@ -30,6 +30,13 @@ class Settings(BaseModel):
     github_base_branch: str = "main"
     github_api_url: str = "https://api.github.com"
     default_environment: str = "local"
+    # Apps the platform can smoke-test: name -> base URL inside the cluster.
+    smoke_targets: dict[str, str] = Field(
+        default_factory=lambda: {
+            "bank": "http://agents-playground.bank.svc.cluster.local:4173",
+            "demo-app": "http://demo-app.demo.svc.cluster.local",
+        }
+    )
 
     @classmethod
     def from_env(cls) -> Settings:

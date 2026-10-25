@@ -44,6 +44,17 @@ real AWS and Claude as configuration switches.
 - Terraform for the reviewed path; Pulumi (TypeScript, Automation API) for
   programmatic ephemeral preview environments.
 
+**A tenant app from its own repository**
+
+- Asaf's [Agents-Playground](https://github.com/asaf-1/Agents-Playground)
+  ("Playground Bank": Node, React, Postgres, 289 Playwright tests) runs on
+  the platform as a tenant: a kustomize overlay reads the app's own
+  manifests at a pinned commit and sets only what the platform decides
+  (namespace from a `k8s-namespace` request, a CNPG Postgres, ingress host,
+  image built from that commit). `make break BREAK_TARGET=bank` plants a
+  settings typo in git; the agent reads the app's real startup error and
+  proposes the one-line fix. ADR 0011.
+
 **AI agents with guardrails**
 
 - Pydantic AI runtime, model from config: a local Ollama model for

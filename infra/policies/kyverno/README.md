@@ -7,9 +7,9 @@ Kyverno's policy reports (`kubectl get policyreport -A`).
 
 | Policy | Scope | What it refuses |
 |---|---|---|
-| `require-resources` | Deployments, StatefulSets, DaemonSets, Jobs, CronJobs in `demo` and `platform` | a container without CPU and memory requests and a memory limit |
-| `disallow-latest-tag` | Pods in `demo` and `platform` (and their controllers) | an image without a tag, or with the tag `latest` |
-| `require-team-label` | Deployments, StatefulSets, DaemonSets, CronJobs in `demo` and `platform` | a workload without a `team` label |
+| `require-resources` | Deployments, StatefulSets, DaemonSets, Jobs, CronJobs in `demo`, `platform` and `bank` | a container without CPU and memory requests and a memory limit |
+| `disallow-latest-tag` | Pods in `demo`, `platform` and `bank` (and their controllers) | an image without a tag, or with the tag `latest` |
+| `require-team-label` | Deployments, StatefulSets, DaemonSets, CronJobs in `demo`, `platform` and `bank` | a workload without a `team` label |
 | `deny-agent-runtime-writes` | every request by the ServiceAccount `platform/agent-runtime`, cluster-wide | any create, update, delete or connect: the third lock on propose-only agents (ADR 0008) |
 
 Tests: `kyverno test infra/policies/kyverno/tests` runs the three

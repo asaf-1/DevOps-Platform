@@ -28,7 +28,7 @@ apply-local: ## Apply an approved request against LocalStack (Phase 1)
 	@echo "==> make apply-local: run the apply worker once against LocalStack"
 	@bash scripts/apply-local.sh
 
-break: ## Break the demo app in git so a real alert fires (Phase 2)
+break: ## Break the demo app (or BREAK_TARGET=bank) in git so a real alert fires (Phase 2)
 	@echo "==> make break: commit a bad image tag and a tiny memory limit for the demo app, push, let ArgoCD roll it out"
 	@bash scripts/break.sh
 

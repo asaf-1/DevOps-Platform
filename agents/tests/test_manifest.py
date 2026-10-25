@@ -23,7 +23,7 @@ def test_capability_rules_cover_the_real_allowlist(capmap: CapabilityMap) -> Non
     assert capmap.capability("grafana.query_loki_logs") == "read"
     assert capmap.capability("local.git_log") == "read"
     assert manifest.mutation == "propose_only"
-    assert manifest.allowed_namespaces == ["demo"]
+    assert manifest.allowed_namespaces == ["demo", "bank"]
 
 
 def test_unknown_tool_is_an_error(capmap: CapabilityMap) -> None:

@@ -1,0 +1,30 @@
+# What the platform decides about the bank's Deployment: the image comes from a
+# registry (the base loads it into kind by hand), the database is the CNPG
+# cluster next to the app, and the memory limit is the one the app's own
+# comment gives for an external database.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agents-playground
+  namespace: agents-playground  # the base namespace; the overlay moves everything to bank
+  annotations:
+    agents-playground/config-checksum: null
+spec:
+  template:
+    spec:
+      containers:
+        - name: app
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: bank-app
+                  key: uri
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

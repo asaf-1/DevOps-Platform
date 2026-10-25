@@ -22,6 +22,7 @@ from .metrics import registry_for, render
 from .models import AuditEvent, CatalogType, RequestCreate, RequestState, ResourceRequest
 from .render import Renderer, request_file_path
 from .settings import Settings
+from .smoke import run_smoke
 from .storage import Store, make_engine
 
 PR_LABEL = "platform-request"
@@ -105,6 +106,15 @@ def metrics(svc: Services = Depends(services)) -> Response:
     """Prometheus metrics computed from the request and audit tables."""
     body, content_type = render(svc.metrics)
     return Response(content=body, media_type=content_type)
+
+
+@app.get("/smoke/{app_name}")
+def smoke(app_name: str, svc: Services = Depends(services)) -> dict[str, Any]:
+    """Run the platform's HTTP smoke test of an app (health, products, orders)."""
+    base = svc.settings.smoke_targets.get(app_name)
+    if base is None:
+        raise HTTPException(status_code=404, detail=f"no smoke test for {app_name}")
+    return run_smoke(app_name, base)
 
 
 @app.get("/healthz")

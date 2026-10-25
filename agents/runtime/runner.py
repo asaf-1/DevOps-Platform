@@ -148,13 +148,20 @@ class Runner:
     def user_prompt(alert: dict[str, Any], fingerprint: str) -> str:
         labels = alert.get("labels", {})
         annotations = alert.get("annotations", {})
-        app = labels.get("deployment") or labels.get("container") or ""
-        gitops_file = (
-            f"GitOps file of this workload: gitops/apps/{app}/deployment.yaml "
-            "(use this exact path)\n"
-            if app
-            else ""
-        )
+        app = labels.get("gitops_app") or labels.get("deployment") or labels.get("container") or ""
+        if app == "demo-app":
+            gitops_file = (
+                "GitOps file of this workload: gitops/apps/demo-app/deployment.yaml "
+                "(use this exact path)\n"
+            )
+        elif app:
+            gitops_file = (
+                f"GitOps folder of this workload: gitops/apps/{app}/ (read it with "
+                "get_file_contents to list its files, then the file that holds the "
+                "setting; change one line there)\n"
+            )
+        else:
+            gitops_file = ""
         return (
             f"An alert fired. Fingerprint: {fingerprint}\n"
             f"Alert: {labels.get('alertname', '?')} (severity {labels.get('severity', '?')})\n"

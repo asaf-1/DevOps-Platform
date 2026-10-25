@@ -1,0 +1,32 @@
+# Playground Bank, the tenant app: a kustomize overlay over the app's own
+# manifests (gitops/apps/playground-bank). The namespace `bank` is not
+# created here: it comes from a k8s-namespace request through the platform,
+# so this Application waits (OutOfSync) until that request is applied.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: playground-bank
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/asaf-1/DevOps-Platform.git
+    targetRevision: main
+    path: gitops/apps/playground-bank
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bank
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

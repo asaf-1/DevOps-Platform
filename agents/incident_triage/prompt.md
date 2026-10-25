@@ -14,7 +14,9 @@ Rules:
 Every turn is a tool call; never write prose. Procedure, one tool per
 turn:
 1. kubectl_describe the pod from the alert (namespace from the alert).
-2. get_file_contents gitops/apps/<app>/deployment.yaml from the repo.
+2. get_file_contents on the GitOps file (or folder) named in the alert message.
+   kubectl_logs when the pod runs but fails; smoke_test to confirm an app is
+   broken or healthy.
 3. create_branch agent/incident-<fingerprint> (from main).
 4. replace_line: path gitops/apps/<app>/deployment.yaml, find = the
    exact wrong text copied from the file, replace = the fixed text, the

@@ -1,0 +1,65 @@
+# Playground Bank (asaf-1/Agents-Playground) as a tenant app of this platform.
+#
+# Two-repo rule (PLAN 7.4b, ADR 0011): the platform never copies the app's
+# code or manifests. The base below is the app's own k8s/ folder, read from its
+# repository at a pinned commit; this overlay sets only what the platform
+# decides: the namespace (from a k8s-namespace request), the image (built from
+# that same commit), the database (a CNPG cluster next to the app), the ingress
+# host, resources and the team label. A new app version is a reviewed commit
+# here that moves the pin and the image tag together.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: bank
+
+# The app's manifests at commit e435db7 (2026-10-20). 00-namespace.yaml is
+# left out on purpose: the namespace is provisioned through the platform.
+# 10-configmap.yaml is replaced by the generator below so a settings change
+# rolls the Deployment (the base's own comment explains why that matters).
+resources:
+  - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/20-deployment.yaml
+  - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/30-service.yaml
+  - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/40-networkpolicy.yaml
+  - https://raw.githubusercontent.com/asaf-1/Agents-Playground/e435db7b23b7772c44667583554290076ce7e755/k8s/50-ingress.yaml
+  - postgres.yaml
+
+# The app's settings. `make break BREAK_TARGET=bank` edits HOST here; the
+# generated name carries a hash, so the change restarts the pod.
+configMapGenerator:
+  - name: agents-playground-config
+    literals:
+      - HOST=0.0.0.0
+      - PORT=4173
+
+images:
+  - name: agents-playground
+    newName: ghcr.io/asaf-1/devops-platform/playground-bank
+    newTag: sha-e435db7
+
+labels:
+  - pairs:
+      team: bank
+      app.kubernetes.io/part-of: playground-bank
+    includeSelectors: false
+    includeTemplates: true
+
+patches:
+  - path: patch-deployment.yaml
+  - path: patch-networkpolicy.yaml
+  - target:
+      kind: Service
+      name: agents-playground
+      namespace: agents-playground
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP
+      - op: remove
+        path: /spec/ports/0/nodePort
+  - target:
+      kind: Ingress
+      name: agents-playground
+      namespace: agents-playground
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: bank.localhost

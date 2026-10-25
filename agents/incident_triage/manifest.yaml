@@ -13,6 +13,7 @@ model:
 mutation: propose_only
 allowed_namespaces:
   - demo
+  - bank
 allowed_tools_file: tools.yaml
 # Six tool turns are the minimum (describe, read file, branch, file, PR,
 # report); the budget is cumulative over turns whose context keeps growing.

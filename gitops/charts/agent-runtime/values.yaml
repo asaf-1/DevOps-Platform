@@ -7,6 +7,7 @@ image:
 # Namespaces the agent may read. One Role + RoleBinding each, read verbs only.
 allowedNamespaces:
   - demo
+  - bank
 
 model:
   provider: ollama            # ollama | anthropic
@@ -29,6 +30,8 @@ grafana:
   publicUrl: http://grafana.localhost:8080   # for the trace links on GET /runs
   secretName: agent-grafana    # service account token, created by scripts/up.sh
   tokenKey: token
+
+platformApiUrl: http://platform-api.platform.svc.cluster.local   # smoke tests run by the platform
 
 metrics:
   enabled: true   # ServiceMonitor on /metrics

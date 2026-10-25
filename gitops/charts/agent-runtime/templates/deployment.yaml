@@ -58,6 +58,8 @@ spec:
                   optional: true
             - name: GITHUB_REPO
               value: {{ .Values.github.repo | quote }}
+            - name: PLATFORM_API_URL
+              value: {{ .Values.platformApiUrl | quote }}
             - name: GRAFANA_URL
               value: {{ .Values.grafana.url | quote }}
             - name: GRAFANA_PUBLIC_URL

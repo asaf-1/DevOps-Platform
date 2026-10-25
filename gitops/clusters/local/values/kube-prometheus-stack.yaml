@@ -69,11 +69,11 @@ alertmanager:
         - receiver: agent-runtime
           matchers:
             - severity =~ "warning|critical"
-            - namespace = "demo"
-            # Only the app's own alerts: Kubernetes' generic ones (KubePodNotReady,
+            - namespace =~ "demo|bank"
+            # Only the apps' own alerts: Kubernetes' generic ones (KubePodNotReady,
             # KubeDeploymentRolloutStuck) describe the same incident and carry the
             # kube-state-metrics pod in their pod label.
-            - alertname =~ "DemoApp.*"
+            - alertname =~ "DemoApp.*|BankApp.*"
           group_wait: 10s
           group_interval: 30s
           repeat_interval: 1h
@@ -128,6 +128,42 @@ additionalPrometheusRulesMap:
             annotations:
               summary: "agent takes more than 3 minutes to its first tool call"
               description: "Median time from alert to the agent's first tool call is {{ $value | humanizeDuration }} (SLO: 3 minutes)."
+  # Playground Bank, the tenant app (namespace bank). gitops_app names the
+  # overlay folder the agent should read.
+  bank-app:
+    groups:
+      - name: bank-app
+        rules:
+          - alert: BankAppCrashLooping
+            expr: max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace="bank"}[5m])) > 2
+            for: 1m
+            labels:
+              severity: critical
+              app: playground-bank
+              gitops_app: playground-bank
+            annotations:
+              summary: "{{ $labels.pod }} is restarting repeatedly"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} restarted more than twice in 5 minutes; read its logs. Settings live in gitops/apps/playground-bank/kustomization.yaml."
+          - alert: BankAppNotReady
+            expr: max by (namespace, pod, container) (kube_pod_container_status_ready{namespace="bank", container="app"}) == 0
+            for: 3m
+            labels:
+              severity: warning
+              app: playground-bank
+              gitops_app: playground-bank
+            annotations:
+              summary: "{{ $labels.pod }} is not ready"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} has failed its readiness check for 3 minutes; read its logs. Settings live in gitops/apps/playground-bank/kustomization.yaml."
+          - alert: BankAppImagePullBackOff
+            expr: max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace="bank", reason=~"ImagePullBackOff|ErrImagePull"}) == 1
+            for: 1m
+            labels:
+              severity: critical
+              app: playground-bank
+              gitops_app: playground-bank
+            annotations:
+              summary: "{{ $labels.pod }} cannot pull its image"
+              description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} is in ImagePullBackOff; the image tag is pinned in gitops/apps/playground-bank/kustomization.yaml."
   demo-app:
     groups:
       - name: demo-app

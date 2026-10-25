@@ -1,0 +1,52 @@
+# Builds the tenant app's image from its own repository at the commit the
+# overlay pins (gitops/apps/playground-bank/kustomization.yaml), and pushes it
+# to this platform's registry namespace. Until asaf-1/Agents-Playground
+# publishes its own image, this is how the pinned commit becomes a pullable
+# tag (ADR 0011). Runs when the pin changes, or by hand.
+name: build-tenant
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gitops/apps/playground-bank/kustomization.yaml"
+      - ".github/workflows/build-tenant.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/devops-platform/playground-bank
+  TENANT_REPO: https://github.com/asaf-1/Agents-Playground.git
+
+jobs:
+  image:
+    name: Build playground-bank from the pinned commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned commit from the overlay
+        id: pin
+        run: |
+          sha="$(grep -oE 'Agents-Playground/[0-9a-f]{40}' gitops/apps/playground-bank/kustomization.yaml | head -1 | cut -d/ -f2)"
+          tag="$(grep -oE 'newTag: sha-[0-9a-f]{7}' gitops/apps/playground-bank/kustomization.yaml | cut -d' ' -f2)"
+          [ -n "$sha" ] && [ "$tag" = "sha-${sha::7}" ] || { echo "::error::kustomization.yaml: the pinned commit and newTag disagree"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push from the tenant repository
+        uses: docker/build-push-action@v6
+        with:
+          context: "${{ env.TENANT_REPO }}#${{ steps.pin.outputs.sha }}"
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.pin.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

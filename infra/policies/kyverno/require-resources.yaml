@@ -21,7 +21,7 @@ spec:
         any:
           - resources:
               kinds: [Deployment, StatefulSet, DaemonSet, Job]
-              namespaces: [demo, platform]
+              namespaces: [demo, platform, bank]
       validate:
         message: >-
           every container must set resources.requests.cpu,
@@ -42,7 +42,7 @@ spec:
         any:
           - resources:
               kinds: [CronJob]
-              namespaces: [demo, platform]
+              namespaces: [demo, platform, bank]
       validate:
         message: >-
           every container must set resources.requests.cpu,

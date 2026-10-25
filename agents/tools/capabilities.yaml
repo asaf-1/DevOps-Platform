@@ -35,3 +35,6 @@ rules:
   # a write to github, the proposal mechanism, never to the cluster.
   - match: "local.replace_line"
     capability: write
+  # Asks the platform API to run an app's smoke test; the agent reads the verdict.
+  - match: "local.smoke_test"
+    capability: read

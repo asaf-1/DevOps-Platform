@@ -19,7 +19,7 @@ spec:
         any:
           - resources:
               kinds: [Deployment, StatefulSet, DaemonSet, CronJob]
-              namespaces: [demo, platform]
+              namespaces: [demo, platform, bank]
       validate:
         message: "the label team=<owning team> is required"
         pattern:

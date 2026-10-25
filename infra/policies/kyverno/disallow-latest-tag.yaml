@@ -10,7 +10,7 @@ metadata:
     policies.kyverno.io/title: Disallow the latest tag
     policies.kyverno.io/severity: medium
     policies.kyverno.io/description: >-
-      Pods in the demo and platform namespaces (and the controllers that create
+      Pods in the demo, platform and bank namespaces (and the controllers that create
       them) must use an image with an explicit tag that is not "latest".
 spec:
   validationFailureAction: Enforce
@@ -21,7 +21,7 @@ spec:
         any:
           - resources:
               kinds: [Pod]
-              namespaces: [demo, platform]
+              namespaces: [demo, platform, bank]
       validate:
         message: "an image tag is required (sha-<7> from the build workflow, or main)"
         pattern:
@@ -33,7 +33,7 @@ spec:
         any:
           - resources:
               kinds: [Pod]
-              namespaces: [demo, platform]
+              namespaces: [demo, platform, bank]
       validate:
         message: "the latest tag is not allowed; use a sha-<7> tag from the build workflow"
         pattern:

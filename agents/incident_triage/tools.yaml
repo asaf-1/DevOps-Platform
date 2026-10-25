@@ -14,4 +14,5 @@ allowed_tools:
   - github.get_file_contents
   - github.create_branch
   - local.replace_line       # one line in, one line out; the runtime edits the file
+  - local.smoke_test         # the platform runs the app's smoke test; read-only for the agent
   - github.create_pull_request

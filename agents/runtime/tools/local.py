@@ -118,4 +118,33 @@ def make_local_toolset(
             f"- {old.strip()}\n+ {lines[i].strip()}"
         )
 
-    return FunctionToolset([git_log, replace_line], id="local")
+    platform_api = os.environ.get(
+        "PLATFORM_API_URL", "http://platform-api.platform.svc.cluster.local"
+    )
+
+    def smoke_test(app: str) -> str:
+        """Run the platform's smoke test of an application and report pass or fail per step.
+
+        Read-only: the platform API calls the app's own health, products and
+        orders endpoints (what its sanity test checks). Use it to confirm a
+        diagnosis or to check that an app is really broken.
+
+        Args:
+            app: the application to test, e.g. bank or demo-app
+        """
+        try:
+            resp = api.get(f"{platform_api}/smoke/{app}", timeout=90)
+        except httpx.HTTPError as e:
+            return f"smoke_test failed: {e}"
+        if resp.status_code != 200:
+            return f"smoke_test failed: HTTP {resp.status_code} {resp.text[:200]}"
+        data = resp.json()
+        lines = [
+            f"{app}: {'PASS' if data.get('passed') else 'FAIL'} ({data.get('duration_ms')} ms)"
+        ]
+        for step in data.get("steps", []):
+            mark = "ok " if step.get("ok") else "FAIL"
+            lines.append(f"  {mark} {step.get('name')}: {step.get('detail', '')}")
+        return "\n".join(lines)
+
+    return FunctionToolset([git_log, replace_line, smoke_test], id="local")

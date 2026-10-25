@@ -1,0 +1,29 @@
+# The bank's Postgres, provided by the platform: a CloudNativePG cluster in
+# the app's namespace. The operator creates the Secret bank-app (username,
+# password, uri); the Deployment reads DATABASE_URL from it, and the app runs
+# its own migrations on start.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: bank
+  namespace: bank
+spec:
+  instances: 1
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 384Mi
+  bootstrap:
+    initdb:
+      database: bank
+      owner: bank
+  postgresql:
+    parameters:
+      max_connections: "50"
+      shared_buffers: 32MB
+  monitoring:
+    enablePodMonitor: true
