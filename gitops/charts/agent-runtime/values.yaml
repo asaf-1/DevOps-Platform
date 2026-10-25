@@ -1,7 +1,7 @@
 # Agent runtime. Image tag bumped by build.yml like the platform API.
 image:
   repository: ghcr.io/asaf-1/devops-platform/agent-runtime
-  tag: "sha-9fcafc0"
+  tag: "sha-4a206fb"
   pullPolicy: Always
 
 # Namespaces the agent may read. One Role + RoleBinding each, read verbs only.

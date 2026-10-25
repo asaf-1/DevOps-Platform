@@ -24,7 +24,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: demo-app
-          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-9fcafc0
+          image: ghcr.io/asaf-1/devops-platform/demo-app:sha-4a206fb
           imagePullPolicy: Always
           ports:
             - name: http
