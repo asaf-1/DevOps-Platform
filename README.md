@@ -53,7 +53,8 @@ real AWS and Claude as configuration switches.
   (namespace from a `k8s-namespace` request, a CNPG Postgres, ingress host,
   image built from that commit). `make break BREAK_TARGET=bank` plants a
   settings typo in git; the agent reads the app's real startup error and
-  proposes the one-line fix. ADR 0011.
+  proposes the one-line fix (verified live on 2026-10-25: PR #9, merged,
+  the app healed from the agent's change). ADR 0011.
 
 **AI agents with guardrails**
 
