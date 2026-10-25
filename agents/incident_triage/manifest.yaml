@@ -14,8 +14,10 @@ mutation: propose_only
 allowed_namespaces:
   - demo
 allowed_tools_file: tools.yaml
-max_steps: 8
-token_budget: 32000
+# Six tool turns are the minimum (describe, read file, branch, file, PR,
+# report); the budget is cumulative over turns whose context keeps growing.
+max_steps: 10
+token_budget: 80000
 knowledge_tags:
   - kubernetes
   - demo-app

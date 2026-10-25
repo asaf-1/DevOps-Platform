@@ -138,6 +138,21 @@ def _fingerprint(alert: Alert) -> str:
     )
 
 
+def _namespace_busy(store: Store, namespace: str | None) -> bool:
+    """A triage for this namespace is in progress or finished recently.
+
+    One broken pod raises several alerts (the app's own, plus Kubernetes'
+    generic rollout and readiness alerts); they all describe one incident.
+    """
+    if not namespace:
+        return False
+    for run in store.list_runs(limit=20):
+        labels = (run.get("alert") or {}).get("labels") or {}
+        if labels.get("namespace") == namespace and _recent(run):
+            return True
+    return False
+
+
 def _recent(run: dict[str, Any]) -> bool:
     """A run for this alert is in progress or finished recently; failed runs do not count."""
     if run["status"] == "running":
@@ -175,6 +190,10 @@ async def alertmanager_webhook(
                 closed.append(latest["id"])
             continue
         if latest and _recent(latest):
+            skipped.append(fp)
+            continue
+        if _namespace_busy(svc.store, alert.labels.get("namespace")):
+            # One broken pod raises several alerts; one triage at a time per namespace.
             skipped.append(fp)
             continue
         run_id = new_run_id()

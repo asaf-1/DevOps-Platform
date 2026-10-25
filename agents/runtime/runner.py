@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models import Model
 from pydantic_ai.usage import UsageLimits
@@ -37,6 +38,39 @@ from .tools.registry import ToolGuard, build_toolsets
 log = logging.getLogger("agent.runner")
 
 _PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
+
+
+class IncidentReport(BaseModel):
+    """The agent's final answer, as structured fields; rendered to Markdown below.
+
+    Making the answer a typed tool call means the model never has to write
+    free text: every turn is a tool call, which keeps a small CPU model on
+    track and makes evals (Phase 3) check fields instead of prose.
+    """
+
+    symptoms: str = Field(description="What the alert said and what you observed, two sentences.")
+    evidence: list[str] = Field(
+        description="At most three short quotes from tool outputs, one per item."
+    )
+    root_cause: str = Field(description="The cause and the git file that holds it, one sentence.")
+    proposed_change: str = Field(
+        description="The change you made, one line: file, old value -> new value."
+    )
+    confidence: str = Field(description="high, medium or low, then one short reason.")
+    not_verified: str = Field(default="", description="What you could not check, one sentence.")
+    pull_request_url: str = Field(default="", description="URL of the pull request you opened.")
+
+    def markdown(self) -> str:
+        evidence = "\n".join(f"- {e}" for e in self.evidence) or "- (none)"
+        return (
+            f"## Symptoms\n{self.symptoms}\n\n"
+            f"## Evidence\n{evidence}\n\n"
+            f"## Root cause\n{self.root_cause}\n\n"
+            f"## Proposed change\n{self.proposed_change.strip()}\n\n"
+            f"## Confidence\n{self.confidence}\n\n"
+            f"## Not verified\n{self.not_verified or 'nothing'}\n"
+            + (f"\nPull request: {self.pull_request_url}\n" if self.pull_request_url else "")
+        )
 
 
 @dataclass
@@ -106,10 +140,7 @@ class Runner:
         section = self.knowledge.prompt_section(alert_tags(labels), set(m.knowledge_tags))
         if section:
             parts.append(section)
-        text = "\n\n".join(parts)
-        if self.model_cfg.provider == "ollama" and self.model_cfg.name.startswith("qwen3"):
-            text = "/no_think\n" + text  # qwen3: answer without a long thinking block
-        return text
+        return "\n\n".join(parts)
 
     @staticmethod
     def user_prompt(alert: dict[str, Any], fingerprint: str) -> str:
@@ -148,11 +179,12 @@ class Runner:
                 "model": f"{self.model_cfg.provider}:{self.model_cfg.name}",
             },
         )
-        agent: Agent[None, str] = Agent(
+        agent: Agent[None, IncidentReport] = Agent(
             self.model,
             name=m.name,
             instructions=self.instructions(alert),
             toolsets=toolsets,
+            output_type=IncidentReport,
             retries=2,
         )
         try:
@@ -173,7 +205,8 @@ class Runner:
                 error=str(e)[:2000],
                 usage={"tool_calls": len(guard.records)},
             )
-        report = str(result.output)
+        output = result.output
+        report = output.markdown() if isinstance(output, IncidentReport) else str(output)
         pr_url = _find_pr_url(report, guard.records)
         usage = result.usage()
         usage_dict = {

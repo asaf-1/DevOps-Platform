@@ -28,7 +28,7 @@ class FakeRunner:
 
         class Cfg:
             provider = "ollama"
-            name = "qwen3:4b"
+            name = "qwen3:4b-instruct"
 
         self.spec = Spec()
         self.model_cfg = Cfg()
@@ -113,3 +113,22 @@ def test_manual_run(tmp_path: Path) -> None:
         assert r.status_code == 202
         _drain(client)
         assert store.get_run(r.json()["id"])["status"] == "done"
+
+
+def test_one_run_per_namespace_at_a_time(tmp_path: Path) -> None:
+    """Two alerts for the same broken pod in one payload start one run, not two."""
+    client, runner, store = make_client(tmp_path)
+    second = {
+        **ALERT,
+        "labels": {**ALERT["labels"], "alertname": "DemoAppUnavailable"},
+        "fingerprint": "fp-456",
+    }
+    with client:
+        r = client.post(
+            "/webhooks/alertmanager", json={"status": "firing", "alerts": [ALERT, second]}
+        )
+        assert r.status_code == 200
+        assert len(r.json()["started"]) == 1
+        assert r.json()["skipped"] == ["fp-456"]
+        _drain(client)
+    assert len(runner.calls) == 1

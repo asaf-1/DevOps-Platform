@@ -17,7 +17,7 @@ general, not one in particular.
 Pydantic AI is the agent framework. The model comes from
 `agents/runtime/providers.py`, the only module that imports a provider:
 `MODEL_PROVIDER=ollama` uses Ollama's OpenAI-compatible endpoint (local,
-free, `qwen3:4b` on this laptop's CPU), `MODEL_PROVIDER=anthropic` uses
+free, `qwen3:4b-instruct` on this laptop's CPU), `MODEL_PROVIDER=anthropic` uses
 Claude (`claude-sonnet-5-5` by default) through `ANTHROPIC_API_KEY`.
 Nothing else in the runtime knows which one is in use. Tool calling, typed
 tool schemas, usage limits (`max_steps`, `token_budget` from the manifest)
@@ -33,8 +33,24 @@ and OpenTelemetry instrumentation come from the framework.
 - Pydantic AI 2.x changed its MCP API from 1.x (`MCPToolset` over a
   FastMCP client); the version is pinned (2.61.0) and the registry is the
   only place that touches it.
-- Thinking models (qwen3) are asked not to think aloud (`/no_think`) to
-  keep tool loops short; the switch lives in the runner, per provider.
+- Thinking is switched off through the only switch Ollama's OpenAI
+  endpoint honours, `reasoning_effort="none"`; it ignores `tool_choice`
+  and a `think` field (ollama/openai/openai.go).
+
+## Amendment 2026-10-25: the local model is `qwen3:4b-instruct`
+
+The library tag `qwen3:4b` resolves to Qwen3-4B-Thinking-2507, a model
+that always reasons first: its chat template opens a `<think>` block on
+every turn and there is no switch to close it (`/no_think` is ignored).
+On this CPU it wrote 2,000+ reasoning tokens at 3 tokens/s before its
+first tool call, so three live runs timed out with zero steps. The
+non-reasoning sibling `qwen3:4b-instruct` (Qwen3-4B-Instruct-2507, same
+size, tool calling built in) is the default instead. Two more changes
+came out of the same investigation: the final answer is a typed
+`IncidentReport` output tool, so every turn is a tool call and the report
+has fields that evals can check; and `agents/dryrun.py` runs the real
+agent against stub tools so model behaviour is checked in minutes, offline,
+before a live run.
 
 ## Alternatives considered
 

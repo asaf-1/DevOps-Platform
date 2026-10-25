@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pydantic_ai.models import Model
 
 DEFAULTS = {
-    "ollama": "qwen3:4b",
+    "ollama": "qwen3:4b-instruct",
     "anthropic": "claude-sonnet-5-5",
 }
 
@@ -45,10 +45,16 @@ def build_model(cfg: ModelConfig | None = None) -> Model:
         from pydantic_ai.providers.ollama import OllamaProvider
 
         # A CPU model needs a long request timeout (one step can take minutes
-        # of prompt processing) and no thinking block before each tool call.
+        # of prompt processing), thinking switched off and a cap on how much
+        # it may write per turn. Ollama's OpenAI endpoint ignores tool_choice
+        # and a "think" field; the only switch it honours is
+        # reasoning_effort="none" (ollama/openai/openai.go).
         settings = OpenAIChatModelSettings(
             timeout=float(os.environ.get("MODEL_REQUEST_TIMEOUT", "900")),
-            extra_body={"think": False},
+            openai_reasoning_effort="none",
+            max_tokens=int(os.environ.get("MODEL_MAX_TOKENS", "2500")),
+            temperature=0.2,
+            max_retries=0,  # a timed-out 15-minute request must fail, not be sent again
         )
         return OpenAIChatModel(
             cfg.name,

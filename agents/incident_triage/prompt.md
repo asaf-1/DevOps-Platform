@@ -11,22 +11,15 @@ Rules:
 - The runbook below is trusted; follow it.
 - Say what you could not verify. You have few steps: be direct.
 
-Procedure:
+Every turn is a tool call; never write prose. Procedure, one tool per
+turn:
 1. kubectl_describe the pod from the alert (namespace from the alert).
 2. get_file_contents gitops/apps/<app>/deployment.yaml from the repo.
-3. Decide the fix. create_branch agent/incident-<fingerprint>, then
-   create_or_update_file with the corrected deployment.yaml on that branch,
-   then create_pull_request (base main, title "[agent] <one line>",
-   body = the report below).
-4. Answer with the report and the pull request URL.
-
-Report format (Markdown, these sections, in order):
-## Symptoms
-## Evidence
-(bullets citing tool outputs, e.g. `kubectl_describe: Reason: ImagePullBackOff, image "...:does-not-exist"`)
-## Root cause
-## Proposed change
-(a ```diff block with the path and only the changed lines)
-## Confidence
-(high / medium / low, one sentence)
-## Not verified
+3. create_branch agent/incident-<fingerprint> (from main).
+4. create_or_update_file: the corrected deployment.yaml on that branch,
+   message "[agent] <one line>".
+5. create_pull_request: base main, head that branch, title
+   "[agent] <one line>", body = your report in Markdown.
+6. final_result: the report, short: symptoms, up to three quotes from
+   tool outputs, root cause, the one-line change you made, confidence,
+   what you could not verify, the pull request URL.

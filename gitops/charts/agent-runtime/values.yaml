@@ -10,7 +10,7 @@ allowedNamespaces:
 
 model:
   provider: ollama            # ollama | anthropic
-  name: qwen3:4b
+  name: qwen3:4b-instruct
   ollamaBaseUrl: http://host.docker.internal:11434
   # anthropic: set the Secret below with key ANTHROPIC_API_KEY and provider: anthropic
   anthropicSecretName: agent-anthropic

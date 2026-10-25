@@ -22,8 +22,10 @@ elsewhere; the new pod simply has no image.
   `gitops/apps/<app>/deployment.yaml` holds the desired tag; the build
   workflow writes `sha-<7 chars>` tags and `main`.
 
-**Fix.** Point the Deployment in git at a tag that exists. For the demo
-app, the last known-good tag is the `sha-` tag written by the build
-workflow (see `git log` on `gitops/apps/demo-app/deployment.yaml`), or
-`main`. Change only the `image:` line. Never patch the live Deployment:
-ArgoCD would revert it, and the fix must be in git.
+**Fix.** Point the Deployment in git at a tag that exists. Never invent
+a tag: a `sha-` tag you did not see in a tool output does not exist. The
+build workflow publishes `main` on every build, so `main` always exists;
+use it unless a tool output shows a real `sha-` tag (for example the
+image of the previous ReplicaSet). Change only the `image:` line. Never
+patch the live Deployment: ArgoCD would revert it, and the fix must be in
+git.

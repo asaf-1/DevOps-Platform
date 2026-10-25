@@ -96,7 +96,8 @@ jobs:
         env:
           TAG: ${{ needs.images.outputs.tag }}
         run: |
-          sed -i -E "s#(ghcr.io/[^/]+/devops-platform/demo-app:)[^\"' ]+#\1${TAG}#" gitops/apps/demo-app/deployment.yaml
+          # Only real tags are bumped; a deliberately broken tag (make break) is left alone.
+          sed -i -E "s#(ghcr.io/[^/]+/devops-platform/demo-app:)(sha-[0-9a-f]+|main)\b#\1${TAG}#" gitops/apps/demo-app/deployment.yaml
           sed -i -E "s#^(  tag: ).*#\1\"${TAG}\"#" gitops/charts/platform-api/values.yaml
           sed -i -E "s#^(  tag: ).*#\1\"${TAG}\"#" gitops/charts/agent-runtime/values.yaml
           git diff --stat
