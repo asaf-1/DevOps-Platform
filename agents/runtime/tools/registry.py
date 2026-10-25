@@ -134,7 +134,7 @@ def _preview(result: Any) -> str:
 
 
 class GuardedToolset(WrapperToolset[Any]):
-    """The one wrapper. Refusals are returned to the model as text, so it can adapt."""
+    """The one wrapper. Refusals and tool errors go back to the model as text, so it can adapt."""
 
     def __init__(self, wrapped: AbstractToolset[Any], server: str, guard: ToolGuard) -> None:
         super().__init__(wrapped)
@@ -166,14 +166,16 @@ class GuardedToolset(WrapperToolset[Any]):
             try:
                 result = await super().call_tool(name, tool_args, ctx, tool)
             except Exception as e:
+                # A failing tool is information, not the end of the run: the
+                # model reads the error and adapts (another resource, an
+                # existing branch). Same shape as a refusal.
                 ms = int((time.monotonic() - started) * 1000)
                 span.record_exception(e)
+                message = _truncate(f"{type(e).__name__}: {e}", PREVIEW_CHARS)
                 self.guard.record(
-                    ToolCallRecord(
-                        qualified, tool_args, False, ms, _truncate(str(e), PREVIEW_CHARS), step=step
-                    )
+                    ToolCallRecord(qualified, tool_args, False, ms, message, step=step)
                 )
-                raise
+                return f"ERROR: {message}"
         ms = int((time.monotonic() - started) * 1000)
         self.guard.record(
             ToolCallRecord(qualified, tool_args, True, ms, _preview(result), step=step)

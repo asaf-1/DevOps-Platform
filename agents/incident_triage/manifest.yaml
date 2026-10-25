@@ -18,6 +18,11 @@ allowed_tools_file: tools.yaml
 # report); the budget is cumulative over turns whose context keeps growing.
 max_steps: 10
 token_budget: 80000
+# One broken pod raises several alerts: one triage per namespace per window,
+# and a failed run is not retried for the same alert for a while (each run
+# costs ten minutes of CPU on the local model).
+namespace_window_minutes: 30
+failed_backoff_minutes: 10
 knowledge_tags:
   - kubernetes
   - demo-app

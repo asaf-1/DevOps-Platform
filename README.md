@@ -51,7 +51,8 @@ real AWS and Claude as configuration switches.
 - Tools come from MCP servers (Kubernetes read-only, GitHub, Grafana). A
   registry labels every tool `read`, `write` or `delete`; a manifest that
   grants a `write` or `delete` tool to a propose-only agent is refused at
-  startup.
+  startup. Refusals and tool errors go back to the model as text so it can
+  adapt; one triage per namespace at a time; failed runs back off.
 - Three independent layers enforce propose-only: the manifest, a Kubernetes
   Role with only `get`, `list` and `watch`, and a Kyverno policy that denies
   writes from the agent's service account.

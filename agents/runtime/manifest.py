@@ -45,6 +45,10 @@ class AgentManifest(BaseModel):
     token_budget: int = Field(default=24000, ge=1000)
     knowledge_tags: list[str] = Field(default_factory=list)
     report: ReportSpec = Field(default_factory=ReportSpec)
+    # One broken workload raises several alerts: one triage per namespace per window.
+    namespace_window_minutes: int = Field(default=30, ge=0)
+    # A failed run is not retried for the same alert before this many minutes.
+    failed_backoff_minutes: int = Field(default=10, ge=0)
 
     @field_validator("allowed_tools")
     @classmethod

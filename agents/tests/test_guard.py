@@ -80,3 +80,28 @@ async def test_guarded_toolset_records_and_refuses(tmp_path: Path) -> None:
     assert rows and rows[-1].event == "agent.tool_refused" and rows[-1].actor_type == "agent"
     steps = guard.store.get_run("run-1")
     assert steps is None  # no run row created in this unit test; add_step is a no-op then
+
+
+async def test_tool_errors_go_back_to_the_model_as_text(tmp_path: Path) -> None:
+    def kubectl_describe(resourceType: str, name: str, namespace: str) -> str:  # noqa: N803
+        """Describe a resource."""
+        raise RuntimeError(f"Resource {resourceType}/{name} not found")
+
+    guard = make_guard(tmp_path, {"kubernetes.kubectl_describe"})
+    toolset = wrap(FunctionToolset([kubectl_describe], id="k"), "kubernetes", guard)
+    model = TestModel(call_tools=["kubernetes_kubectl_describe"])
+    agent = Agent(model, toolsets=[toolset])
+    # TestModel fills namespace with a made-up value; widen the scope so the call goes through
+    guard.allowed_namespaces = {"a"}
+    result = await agent.run("go")
+    rec = guard.records[0]
+    assert rec.ok is False and rec.refused is None and "not found" in rec.preview
+    from pydantic_ai.messages import ToolReturnPart
+
+    returns = [
+        part.content
+        for msg in result.all_messages()
+        for part in getattr(msg, "parts", [])
+        if isinstance(part, ToolReturnPart)
+    ]
+    assert returns and str(returns[0]).startswith("ERROR: RuntimeError: Resource")

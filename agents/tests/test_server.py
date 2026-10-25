@@ -23,6 +23,8 @@ class FakeRunner:
                 allowed_namespaces = ["demo"]
                 max_steps = 12
                 token_budget = 24000
+                namespace_window_minutes = 30
+                failed_backoff_minutes = 10
 
             resolved = {"kubernetes.kubectl_get": {"capability": "read", "target": "cluster"}}
 
@@ -132,3 +134,37 @@ def test_one_run_per_namespace_at_a_time(tmp_path: Path) -> None:
         assert r.json()["skipped"] == ["fp-456"]
         _drain(client)
     assert len(runner.calls) == 1
+
+
+def test_failed_runs_back_off_unless_interrupted(tmp_path: Path) -> None:
+    from datetime import timedelta
+
+    from runtime.audit import RunRow, utcnow
+
+    client, runner, store = make_client(tmp_path)
+    payload = {"status": "firing", "alerts": [ALERT]}
+
+    def finished_failed(run_id: str, minutes_ago: int, error: str = "boom") -> None:
+        store.create_run(run_id, "incident-triage", "fp-123", ALERT)
+        store.finish_run(run_id, status="failed", error=error)
+        with store.session() as s:
+            row = s.get(RunRow, run_id)
+            assert row is not None
+            row.finished_at = utcnow() - timedelta(minutes=minutes_ago)
+
+    with client:
+        finished_failed("run-f1", 2)  # failed 2 minutes ago: back off
+        assert client.post("/webhooks/alertmanager", json=payload).json()["skipped"] == ["fp-123"]
+        with store.session() as s:  # the same failure, now 11 minutes old: retry
+            row = s.get(RunRow, "run-f1")
+            assert row is not None
+            row.finished_at = utcnow() - timedelta(minutes=11)
+        assert len(client.post("/webhooks/alertmanager", json=payload).json()["started"]) == 1
+        _drain(client)
+        # the retry finished as done just now; drop it to isolate the restart rule
+        with store.session() as s:
+            for row in s.query(RunRow).filter(RunRow.status == "done"):
+                s.delete(row)
+        finished_failed("run-f3", 0, error="interrupted by a runtime restart")
+        assert len(client.post("/webhooks/alertmanager", json=payload).json()["started"]) == 1
+        _drain(client)

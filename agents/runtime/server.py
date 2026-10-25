@@ -138,8 +138,10 @@ def _fingerprint(alert: Alert) -> str:
     )
 
 
-def _namespace_busy(store: Store, namespace: str | None) -> bool:
-    """A triage for this namespace is in progress or finished recently.
+def _namespace_busy(
+    store: Store, namespace: str | None, window: int = DEDUPE_MINUTES, failed_backoff: int = 10
+) -> bool:
+    """A triage for this namespace is in progress or finished within the window.
 
     One broken pod raises several alerts (the app's own, plus Kubernetes'
     generic rollout and readiness alerts); they all describe one incident.
@@ -148,24 +150,33 @@ def _namespace_busy(store: Store, namespace: str | None) -> bool:
         return False
     for run in store.list_runs(limit=20):
         labels = (run.get("alert") or {}).get("labels") or {}
-        if labels.get("namespace") == namespace and _recent(run):
+        if labels.get("namespace") == namespace and _recent(run, window, failed_backoff):
             return True
     return False
 
 
-def _recent(run: dict[str, Any]) -> bool:
-    """A run for this alert is in progress or finished recently; failed runs do not count."""
+def _recent(run: dict[str, Any], minutes: int = DEDUPE_MINUTES, failed_backoff: int = 10) -> bool:
+    """A run for this alert is in progress or finished recently.
+
+    A finished run counts for `minutes`; a failed one for `failed_backoff`
+    (each attempt costs minutes of CPU on the local model), except a run
+    interrupted by a restart of the runtime, which may be retried at once.
+    """
     if run["status"] == "running":
         return True
-    if run["status"] == "failed":
-        return False
     finished = run.get("finished_at")
     if not finished:
         return True
+    if run["status"] == "failed":
+        if str(run.get("error") or "").startswith("interrupted by a runtime restart"):
+            return False
+        window = failed_backoff
+    else:
+        window = minutes
     when = datetime.fromisoformat(finished)
     if when.tzinfo is None:  # SQLite drops the offset; our timestamps are UTC
         when = when.replace(tzinfo=UTC)
-    return when > datetime.now(UTC) - timedelta(minutes=DEDUPE_MINUTES)
+    return when > datetime.now(UTC) - timedelta(minutes=window)
 
 
 @app.post("/webhooks/alertmanager")
@@ -175,6 +186,7 @@ async def alertmanager_webhook(
     started: list[str] = []
     skipped: list[str] = []
     closed: list[str] = []
+    m = svc.runner.spec.manifest
     for alert in payload.alerts:
         fp = _fingerprint(alert)
         latest = svc.store.latest_run_for(fp)
@@ -189,10 +201,15 @@ async def alertmanager_webhook(
                 )
                 closed.append(latest["id"])
             continue
-        if latest and _recent(latest):
+        if latest and _recent(latest, DEDUPE_MINUTES, m.failed_backoff_minutes):
             skipped.append(fp)
             continue
-        if _namespace_busy(svc.store, alert.labels.get("namespace")):
+        if _namespace_busy(
+            svc.store,
+            alert.labels.get("namespace"),
+            m.namespace_window_minutes,
+            m.failed_backoff_minutes,
+        ):
             # One broken pod raises several alerts; one triage at a time per namespace.
             skipped.append(fp)
             continue

@@ -70,6 +70,10 @@ alertmanager:
           matchers:
             - severity =~ "warning|critical"
             - namespace = "demo"
+            # Only the app's own alerts: Kubernetes' generic ones (KubePodNotReady,
+            # KubeDeploymentRolloutStuck) describe the same incident and carry the
+            # kube-state-metrics pod in their pod label.
+            - alertname =~ "DemoApp.*"
           group_wait: 10s
           group_interval: 30s
           repeat_interval: 1h
@@ -105,7 +109,7 @@ additionalPrometheusRulesMap:
               summary: "{{ $labels.pod }} was OOMKilled"
               description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} exceeded its memory limit; see resources.limits.memory in gitops/apps/demo-app/deployment.yaml."
           - alert: DemoAppCrashLooping
-            expr: increase(kube_pod_container_status_restarts_total{namespace="demo"}[5m]) > 2
+            expr: max by (namespace, pod, container) (increase(kube_pod_container_status_restarts_total{namespace="demo"}[5m])) > 2
             for: 1m
             labels:
               severity: warning
@@ -114,7 +118,7 @@ additionalPrometheusRulesMap:
               summary: "{{ $labels.pod }} is restarting repeatedly"
               description: "Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} restarted more than twice in 5 minutes."
           - alert: DemoAppUnavailable
-            expr: kube_deployment_status_replicas_unavailable{namespace="demo"} > 0
+            expr: max by (namespace, deployment) (kube_deployment_status_replicas_unavailable{namespace="demo"}) > 0
             for: 2m
             labels:
               severity: warning
