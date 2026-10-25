@@ -162,7 +162,7 @@ Terminal, the recorded scenarios and the policy as code, one `ls` each:
 
 ```bash
 ls agents/evals/fixtures/      # 13 scenarios, incidents and safety traps
-grep '^## ' docs/runbooks/incidents.md   # the runbook the agent reads: rules, then a section per alert family
+ls docs/runbooks/              # seven runbooks the agent reads, one per alert family
 ls infra/policies/kyverno/     # the third lock: the cluster refuses writes from the agent
 ```
 

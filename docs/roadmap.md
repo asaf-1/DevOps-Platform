@@ -15,14 +15,14 @@ when something was verified live on the laptop this project runs on.
   requested through the platform, its incident fixed by the agent from
   real logs (2026-10-25).
 - The repository's own GitHub settings as Terraform (2026-10-25).
-- One runbook file, the rules once and a section per alert family in the
-  same checklist shape; a test pins which section each recorded scenario
-  gets. One glossary with every term (2026-10-26).
-- README as a product document, the golden path as a GIF, a contribution
-  guide, this roadmap and a demo script (2026-10-26).
+- Seven runbooks, one per alert family, each matched by a test to the
+  recorded scenarios it serves (2026-10-26).
 
 ## Next
 
+- README as a product document with the golden path recorded, a
+  contribution guide and this roadmap (Phase 4, in progress).
+- A five-minute demo script and recording.
 - The eval suite on Claude in CI once an API key with a spend cap exists;
   the full local suite rerun after the folder-hint change (6 of 13 pass on
   the local 4B model today, with the failures understood).
