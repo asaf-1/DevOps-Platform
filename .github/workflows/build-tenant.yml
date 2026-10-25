@@ -46,6 +46,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: "${{ env.TENANT_REPO }}#${{ steps.pin.outputs.sha }}"
+          # The tenant's Dockerfile pulls its base from the public ECR mirror, whose
+          # anonymous data limit GitHub's shared runners exhaust ("toomanyrequests").
+          # Same image, read from Docker Hub instead; the Dockerfile is untouched.
+          build-contexts: |
+            public.ecr.aws/docker/library/node:24-bookworm-slim=docker-image://docker.io/library/node:24-bookworm-slim
           push: true
           tags: ${{ env.IMAGE }}:${{ steps.pin.outputs.tag }}
           cache-from: type=gha
