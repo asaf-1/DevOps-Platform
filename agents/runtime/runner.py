@@ -146,6 +146,13 @@ class Runner:
     def user_prompt(alert: dict[str, Any], fingerprint: str) -> str:
         labels = alert.get("labels", {})
         annotations = alert.get("annotations", {})
+        app = labels.get("deployment") or labels.get("container") or ""
+        gitops_file = (
+            f"GitOps file of this workload: gitops/apps/{app}/deployment.yaml "
+            "(use this exact path)\n"
+            if app
+            else ""
+        )
         return (
             f"An alert fired. Fingerprint: {fingerprint}\n"
             f"Alert: {labels.get('alertname', '?')} (severity {labels.get('severity', '?')})\n"
@@ -153,7 +160,8 @@ class Runner:
             f"Container: {labels.get('container', '?')}\n"
             f"Summary: {annotations.get('summary', '')}\n"
             f"Description: {annotations.get('description', '')}\n"
-            f"Labels: {json.dumps(labels, sort_keys=True)}\n\n"
+            f"Labels: {json.dumps(labels, sort_keys=True)}\n"
+            f"{gitops_file}\n"
             "Diagnose it and propose the fix as a pull request, then answer with the report "
             "and the pull request URL."
         )
@@ -208,7 +216,9 @@ class Runner:
         output = result.output
         report = output.markdown() if isinstance(output, IncidentReport) else str(output)
         pr_url = _find_pr_url(report, guard.records)
-        usage = result.usage()
+        usage = result.usage  # a property in Pydantic AI 2.x; a method in 1.x
+        if callable(usage):
+            usage = usage()
         usage_dict = {
             "requests": getattr(usage, "requests", None),
             "input_tokens": getattr(usage, "input_tokens", None),

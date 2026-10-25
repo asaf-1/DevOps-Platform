@@ -238,7 +238,8 @@ async def main() -> None:
         print(f"{t()} FAILED: {type(e).__name__}: {str(e)[:500]}")
         return
     assert result is not None
-    print(f"{t()} usage total: {result.usage()}")
+    usage = result.usage() if callable(result.usage) else result.usage
+    print(f"{t()} usage total: {usage}")
     print("=== REPORT ===")
     out = result.output
     print(out.markdown() if isinstance(out, IncidentReport) else out)
