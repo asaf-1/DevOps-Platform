@@ -137,15 +137,21 @@ def create_branch(owner: str, repo: str, branch: str, from_branch: str = "main")
     return json.dumps({"ref": f"refs/heads/{branch}", "from": from_branch})
 
 
-def create_or_update_file(
-    owner: str, repo: str, path: str, content: str, message: str, branch: str, sha: str = ""
-) -> str:
-    """Create or update a single file in a GitHub repository."""
-    print(f"{t()}   >>> proposed {path} on {branch}: {message}")
-    for line in content.splitlines():
-        if "image:" in line or "memory:" in line:
-            print(f"{t()}       {line.strip()}")
-    return json.dumps({"commit": {"sha": "abc1234"}, "content": {"path": path}})
+def replace_line(path: str, find: str, replace: str, branch: str, message: str) -> str:
+    """Change one line of a file in the GitOps repo, on an agent branch."""
+    print(f"{t()}   >>> replace_line {path} on {branch}: {find!r} -> {replace!r} ({message})")
+    lines = BROKEN_DEPLOYMENT.split("\n")
+    hits = [i for i, line in enumerate(lines) if find in line]
+    if not path.startswith("gitops/apps/") or not branch.startswith("agent/"):
+        return "replace_line refused: path must be under gitops/apps/ and branch under agent/"
+    if len(hits) != 1:
+        return f"replace_line failed: {find!r} is on {len(hits)} lines"
+    old = lines[hits[0]]
+    new = old.replace(find, replace)
+    return (
+        f"changed line {hits[0] + 1} of {path} on {branch} (commit abc1234):\n"
+        f"- {old.strip()}\n+ {new.strip()}"
+    )
 
 
 def create_pull_request(
@@ -198,9 +204,10 @@ async def main() -> None:
 
     toolsets = [
         FunctionToolset(tools=[kubectl_get, kubectl_describe, kubectl_logs]).prefixed("kubernetes"),
-        FunctionToolset(
-            tools=[get_file_contents, create_branch, create_or_update_file, create_pull_request]
-        ).prefixed("github"),
+        FunctionToolset(tools=[get_file_contents, create_branch, create_pull_request]).prefixed(
+            "github"
+        ),
+        FunctionToolset(tools=[replace_line]).prefixed("local"),
     ]
     instructions = runner.instructions(ALERT)
     print(f"model: {cfg.provider}:{cfg.name} at {cfg.ollama_base_url}")

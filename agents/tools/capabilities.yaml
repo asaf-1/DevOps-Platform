@@ -31,3 +31,7 @@ rules:
   # local tools
   - match: "local.git_log"
     capability: read
+  # Changes one line of a file on an agent branch through the GitHub API:
+  # a write to github, the proposal mechanism, never to the cluster.
+  - match: "local.replace_line"
+    capability: write

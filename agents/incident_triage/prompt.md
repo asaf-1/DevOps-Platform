@@ -16,8 +16,9 @@ turn:
 1. kubectl_describe the pod from the alert (namespace from the alert).
 2. get_file_contents gitops/apps/<app>/deployment.yaml from the repo.
 3. create_branch agent/incident-<fingerprint> (from main).
-4. create_or_update_file: the corrected deployment.yaml on that branch,
-   message "[agent] <one line>".
+4. replace_line: path gitops/apps/<app>/deployment.yaml, find = the
+   exact wrong text copied from the file, replace = the fixed text, the
+   branch, message "[agent] <one line>". You never write whole files.
 5. create_pull_request: base main, head that branch, title
    "[agent] <one line>", body = your report in Markdown.
 6. final_result: the report, short: symptoms, up to three quotes from

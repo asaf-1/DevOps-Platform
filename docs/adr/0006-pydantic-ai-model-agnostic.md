@@ -50,7 +50,12 @@ came out of the same investigation: the final answer is a typed
 `IncidentReport` output tool, so every turn is a tool call and the report
 has fields that evals can check; and `agents/dryrun.py` runs the real
 agent against stub tools so model behaviour is checked in minutes, offline,
-before a live run.
+before a live run. The first live run with the instruct model showed the
+next limit: asked to write the corrected file back, the model invented a
+path and rewrote the file from memory. So the agent no longer writes
+files: a local `replace_line` tool takes one line and its replacement,
+and the runtime reads, edits and commits the file through the GitHub
+API (only under `gitops/apps/`, only on an `agent/` branch).
 
 ## Alternatives considered
 
