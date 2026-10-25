@@ -50,7 +50,7 @@ def run_smoke(app: str, base_url: str, client: httpx.Client | None = None) -> di
         except ValueError:
             steps.append(_step("products", False, f"HTTP {r.status_code}, not JSON"))
 
-    r = get("/api/products/sku-123")
+    r = get("/api/product/sku-123")  # singular: the bank's product page API
     if r is not None:
         ok = r.status_code == 200 and "price" in r.text.lower()
         steps.append(_step("product sku-123", ok, f"HTTP {r.status_code} {r.text[:120]}"))

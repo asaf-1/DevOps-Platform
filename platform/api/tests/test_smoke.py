@@ -18,8 +18,8 @@ def fake_app(healthy: bool = True) -> httpx.Client:
             return httpx.Response(
                 200, json=[{"sku": "sku-123", "price": 10}, {"sku": "sku-9", "price": 3}]
             )
-        if path == "/api/products/sku-123":
-            return httpx.Response(200, json={"sku": "sku-123", "price": "$10.00"})
+        if path == "/api/product/sku-123":
+            return httpx.Response(200, json={"product": {"id": "sku-123", "price": 1299.45}})
         if path == "/api/orders":
             return httpx.Response(401, json={"message": "sign in"})
         return httpx.Response(404)
