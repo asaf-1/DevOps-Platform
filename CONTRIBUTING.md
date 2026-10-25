@@ -32,7 +32,7 @@ check of every shell script. Nothing is pushed while it is red.
   and a module under `infra/terraform/modules/`.
 - A new agent: a folder under `agents/` with `manifest.yaml`, `tools.yaml`
   and `prompt.md`; capability rules in `agents/tools/capabilities.yaml`;
-  runbooks in `docs/runbooks/` with tags; a recorded scenario in
+  a section in `docs/runbooks/incidents.md` with its id and tags; a recorded scenario in
   `agents/evals/fixtures/`.
 - A non-obvious decision: an ADR in `docs/adr/` from the template.
 - Anything the cluster should run: a commit under `gitops/`; ArgoCD

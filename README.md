@@ -40,7 +40,7 @@ live and dated); and me, as the reference implementation I keep extending.
 | 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | done: request -> PR with plan, policy and security checks -> auto-merge -> one-click approval -> in-cluster apply -> audit timeline -> demo app shows its bucket (2026-10-24) |
 | 2. Agent platform | model-agnostic agent runtime, MCP tool registry with capability labels, incident-triage agent, fix PR flow, Alertmanager wiring | done: `make break` -> alert -> agent reads the pod and the GitOps file -> one-line fix on an `agent/*` branch -> PR with a report -> human merge -> ArgoCD heals the app -> alert resolves -> run closed (2026-10-25: 10 minutes from alert to report on a local 4B model) |
 | 3. Trust layer | Promptfoo eval suite in CI, safety cases, Kyverno policies against the agent service account, OpenTelemetry traces per run and tool call, Grafana dashboards | done: thirteen recorded scenarios behind the same guard, `make evals` and the `agents-eval` gate, one trace per run linked from the run record, append-only audit table with nightly export, Platform DX and Agents dashboards, four Kyverno policies verified live, SLO alerts (2026-10-25) |
-| 4. Product and polish | GitHub settings as code, product README, roadmap, demo script, optional real AWS and Datadog | in progress: the repository's own GitHub settings are Terraform (`make github-settings`, applied 2026-10-25); this README; [roadmap](docs/roadmap.md); seven runbooks; [demo script](docs/demo-script.md) |
+| 4. Product and polish | GitHub settings as code, product README, roadmap, demo script, optional real AWS and Datadog | done 2026-10-26: the repository's own GitHub settings are Terraform (`make github-settings`, applied 2026-10-25); this README; [roadmap](docs/roadmap.md); the one runbook file; [glossary](docs/glossary.md); [demo script](docs/demo-script.md). Real AWS and Datadog stay optional and off |
 
 A second app, [Playground Bank](https://github.com/asaf-1/Agents-Playground),
 runs on the platform as a tenant from its own repository; the agent fixed a
@@ -257,10 +257,11 @@ any other. The existing types (`s3-bucket`, `dynamodb-table`,
 2. Every tool it names needs a rule in `agents/tools/capabilities.yaml`.
    The runtime refuses to start a propose-only agent that is granted a
    cluster `write` or any `delete`.
-3. Knowledge: runbooks under `docs/runbooks/` with tags in the front
-   matter; the loader attaches the one whose tags match the alert name
-   (seven today: crash loop, image pull, OOM, unavailable, TLS, HPA,
-   latency), and a test pins which runbook each recorded scenario gets.
+3. Knowledge: one runbook file, `docs/runbooks/incidents.md`, with the
+   rules once and a section per alert family, every section in the same
+   checklist shape (alerts, collect, read the evidence, never). The loader
+   always sends the rules and adds the one section whose tags match the
+   alert name; a test pins which section each recorded scenario gets.
 4. A recorded scenario under `agents/evals/fixtures/`: the alert, the
    files, the canned tool outputs and the `expect` block. `agents/dryrun.py
    <fixture>` shows every model turn in minutes; `make evals` scores it.
@@ -311,9 +312,10 @@ Local configuration goes in `.env`, copied from [.env.example](.env.example).
 ```
 .devcontainer/      Linux toolchain, pinned
 .github/workflows/  iac-pr, iac-approve, build, build-tenant, agents-eval
-docs/adr/           architecture decision records (0001 to 0012)
-docs/runbooks/      knowledge the agents read
+docs/adr/           architecture decision records (0001 to 0013)
+docs/runbooks/      incidents.md, the runbook the agents read
 docs/roadmap.md     now, next, later
+docs/glossary.md    every term used here, in plain language
 platform/           FastAPI service, Typer CLI, resource catalog
 infra/terraform/    modules, environments (local, dev), the repo's GitHub settings
 infra/pulumi/       TypeScript component + automation program
@@ -360,10 +362,12 @@ scripts/            what the Makefile targets run
 - [0010 One audit table for humans, agents and the platform](docs/adr/0010-audit-model.md)
 - [0011 A tenant app deployed from its own repository](docs/adr/0011-tenant-app-from-its-own-repo.md)
 - [0012 The repository's GitHub settings as Terraform, applied by a person](docs/adr/0012-github-settings-as-code.md)
+- [0013 One runbook file, sections chosen by tags](docs/adr/0013-one-runbook-file.md)
 
-See also the [roadmap](docs/roadmap.md), [CONTRIBUTING.md](CONTRIBUTING.md)
+See also the [roadmap](docs/roadmap.md), [CONTRIBUTING.md](CONTRIBUTING.md),
+the [glossary](docs/glossary.md) (every term used here, in plain language)
 and the [demo script](docs/demo-script.md): the exact commands and clicks
-of a five-minute recording, with the waits marked.
+of a five-minute walkthrough, with the waits marked.
 
 ## License
 
