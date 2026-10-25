@@ -143,10 +143,11 @@ Click **Merge pull request**.
 Browser: the bank tab, refresh: products load. Terminal:
 
 ```bash
-curl -s http://localhost:18000/smoke/bank
+curl -s http://localhost:18000/smoke/bank | python3 -m json.tool
 ```
 
-`4 of 4 passed`. Say: "the same smoke test the agent can run as a
+`"passed": true`, and four steps (health, products, one product, orders)
+each with `"ok": true`. Say: "the same smoke test the agent can run as a
 read-only tool."
 
 ## Scene 5. The trust layer (3:50 to 4:40)
