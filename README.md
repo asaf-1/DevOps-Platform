@@ -40,7 +40,7 @@ live and dated); and me, as the reference implementation I keep extending.
 | 1. Self-service path | catalog, platform API and CLI, Terraform modules, PR pipeline with plan, policy and cost, approval gate, in-cluster apply worker, audit trail, Pulumi preview environments | done: request -> PR with plan, policy and security checks -> auto-merge -> one-click approval -> in-cluster apply -> audit timeline -> demo app shows its bucket (2026-10-24) |
 | 2. Agent platform | model-agnostic agent runtime, MCP tool registry with capability labels, incident-triage agent, fix PR flow, Alertmanager wiring | done: `make break` -> alert -> agent reads the pod and the GitOps file -> one-line fix on an `agent/*` branch -> PR with a report -> human merge -> ArgoCD heals the app -> alert resolves -> run closed (2026-10-25: 10 minutes from alert to report on a local 4B model) |
 | 3. Trust layer | Promptfoo eval suite in CI, safety cases, Kyverno policies against the agent service account, OpenTelemetry traces per run and tool call, Grafana dashboards | done: thirteen recorded scenarios behind the same guard, `make evals` and the `agents-eval` gate, one trace per run linked from the run record, append-only audit table with nightly export, Platform DX and Agents dashboards, four Kyverno policies verified live, SLO alerts (2026-10-25) |
-| 4. Product and polish | GitHub settings as code, product README, roadmap, demo script, optional real AWS and Datadog | in progress: the repository's own GitHub settings are Terraform (`make github-settings`, applied 2026-10-25); this README; [roadmap](docs/roadmap.md) |
+| 4. Product and polish | GitHub settings as code, product README, roadmap, demo script, optional real AWS and Datadog | in progress: the repository's own GitHub settings are Terraform (`make github-settings`, applied 2026-10-25); this README; [roadmap](docs/roadmap.md); seven runbooks; [demo script](docs/demo-script.md) |
 
 A second app, [Playground Bank](https://github.com/asaf-1/Agents-Playground),
 runs on the platform as a tenant from its own repository; the agent fixed a
@@ -361,7 +361,9 @@ scripts/            what the Makefile targets run
 - [0011 A tenant app deployed from its own repository](docs/adr/0011-tenant-app-from-its-own-repo.md)
 - [0012 The repository's GitHub settings as Terraform, applied by a person](docs/adr/0012-github-settings-as-code.md)
 
-See also the [roadmap](docs/roadmap.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+See also the [roadmap](docs/roadmap.md), [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [demo script](docs/demo-script.md): the exact commands and clicks
+of a five-minute recording, with the waits marked.
 
 ## License
 
