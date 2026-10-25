@@ -149,19 +149,21 @@ class Runner:
         labels = alert.get("labels", {})
         annotations = alert.get("annotations", {})
         app = labels.get("gitops_app") or labels.get("deployment") or labels.get("container") or ""
-        if app == "demo-app":
-            gitops_file = (
-                "GitOps file of this workload: gitops/apps/demo-app/deployment.yaml "
-                "(use this exact path)\n"
-            )
-        elif app:
-            gitops_file = (
+        # A folder, never one file: naming deployment.yaml made a small model edit
+        # it even when the setting lived in service.yaml or configmap.yaml.
+        gitops_file = (
+            (
                 f"GitOps folder of this workload: gitops/apps/{app}/ (read it with "
-                "get_file_contents to list its files, then the file that holds the "
-                "setting; change one line there)\n"
+                "get_file_contents to list its files, then read the file that holds "
+                "the setting you need to change: the image tag and resources are in "
+                "deployment.yaml, ports in service.yaml, settings such as HOST or PORT are "
+                "one line each in configmap.yaml or in the literals of kustomization.yaml, "
+                "replicas in hpa.yaml, TLS in ingress.yaml; change that one line, never "
+                "add env entries to a deployment patch)\n"
             )
-        else:
-            gitops_file = ""
+            if app
+            else ""
+        )
         return (
             f"An alert fired. Fingerprint: {fingerprint}\n"
             f"Alert: {labels.get('alertname', '?')} (severity {labels.get('severity', '?')})\n"

@@ -45,6 +45,10 @@ def test_fixture_tools_serve_reads_and_record_proposals() -> None:
     before = tool("github", "get_file_contents")("asaf-1", "DevOps-Platform", path)
     assert "does-not-exist" in before
     assert "404" in tool("github", "get_file_contents")("asaf-1", "DevOps-Platform", "apps/x.yaml")
+    listing = tool("github", "get_file_contents")(
+        "asaf-1", "DevOps-Platform", "gitops/apps/demo-app/"
+    )
+    assert '"name": "deployment.yaml"' in listing  # a folder lists its recorded files
 
     out = tool("local", "replace_line")(
         path, "demo-app:does-not-exist", "demo-app:main", "agent/incident-1", "[agent] fix"

@@ -59,6 +59,13 @@ def test_refuses_wrong_path_and_branch() -> None:
     assert "put" not in store
 
 
+def test_refuses_multiline_find_with_guidance() -> None:
+    store: dict[str, Any] = {"file": FILE}
+    out = tool(store)(PATH, "a\nb", "c", BRANCH, "m")
+    assert out.startswith("replace_line refused") and "ONE line" in out
+    assert "put" not in store
+
+
 def test_reports_missing_and_ambiguous_lines() -> None:
     store: dict[str, Any] = {"file": FILE}
     assert "no line of" in tool(store)(PATH, "sha-1234567", "main", BRANCH, "m")

@@ -77,6 +77,13 @@ def make_local_toolset(
             return f"replace_line refused: branch must start with {BRANCH_PREFIX}, not {branch!r}"
         if not find or find == replace:
             return "replace_line refused: find must be non-empty and differ from replace"
+        if "\n" in find:
+            return (
+                "replace_line refused: find must be text on ONE line. To change a setting, "
+                "find the single line that holds it (for example `- HOST=0.0.0.0.1` in a "
+                "ConfigMap or kustomization literals) and give that line's new text; "
+                "do not add new env entries"
+            )
         resp = api.get(f"/repos/{repo}/contents/{path}", params={"ref": branch})
         if resp.status_code == 404:
             return (

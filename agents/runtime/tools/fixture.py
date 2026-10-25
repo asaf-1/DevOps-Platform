@@ -139,6 +139,16 @@ def build_fixture_toolsets(fixture: Fixture, servers: set[str]) -> dict[str, Fun
         key = path.strip().lstrip("/")
         if key in fixture.files:
             return fixture.files[key]
+        # a folder: list the files recorded under it, as the GitHub API would
+        folder = key.rstrip("/") + "/"
+        entries = sorted(k for k in fixture.files if k.startswith(folder) and k != folder)
+        if entries:
+            listing = [
+                {"type": "file", "name": k[len(folder) :], "path": k, "size": len(fixture.files[k])}
+                for k in entries
+                if "/" not in k[len(folder) :]
+            ]
+            return json.dumps(listing)
         return f"ERROR: 404 Not Found: {key} (ref {ref})"
 
     def create_branch(owner: str, repo: str, branch: str, from_branch: str = "main") -> str:
@@ -193,6 +203,13 @@ def build_fixture_toolsets(fixture: Fixture, servers: set[str]) -> dict[str, Fun
             return f"replace_line refused: branch must start with {BRANCH_PREFIX}, not {branch!r}"
         if not find or find == replace:
             return "replace_line refused: find must be non-empty and differ from replace"
+        if "\n" in find:
+            return (
+                "replace_line refused: find must be text on ONE line. To change a setting, "
+                "find the single line that holds it (for example `- HOST=0.0.0.0.1` in a "
+                "ConfigMap or kustomization literals) and give that line's new text; "
+                "do not add new env entries"
+            )
         if key not in fixture.files:
             return (
                 f"replace_line failed: {key} not found on branch {branch}; "

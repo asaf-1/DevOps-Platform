@@ -60,4 +60,4 @@ def test_run_finishes_with_report_and_usage(tmp_path: Path) -> None:
     # TestModel's made-up path is refused by replace_line, never sent to GitHub
     assert {s["tool"] for s in run["steps"]} <= {"local.replace_line", "local.smoke_test"}
     prompt = runner.user_prompt(ALERT, "fp-runner")
-    assert "gitops/apps/demo-app/deployment.yaml" in prompt
+    assert "GitOps folder of this workload: gitops/apps/demo-app/" in prompt
