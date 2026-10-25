@@ -52,7 +52,9 @@ check terraform fmt -check -recursive "$REPO_ROOT/infra/terraform"
 
 for env_dir in "$REPO_ROOT"/infra/terraform/envs/*/ "$REPO_ROOT"/infra/terraform/github/; do
   step "terraform validate $(basename "$env_dir")"
-  check bash -c "cd '$env_dir' && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color"
+  # A fresh TF_DATA_DIR: a root that was initialised for real (pg backend)
+  # must not contact that backend during a validate.
+  check bash -c "cd '$env_dir' && export TF_DATA_DIR=\/tmp/tmp.xkTi5B9X4r && terraform init -backend=false -input=false >/dev/null && terraform validate -no-color"
 done
 
 step "conftest verify (policy unit tests)"
